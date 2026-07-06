@@ -22,6 +22,7 @@ const metadataContainer = document.getElementById("metadataContainer")
 const parametersForm = document.getElementById("parameters")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
 const acquisitionIntervalInput = document.getElementById("acquisitionInterval")
+const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
 const resolutionInput = document.getElementById("resolution")
 const xMaxInput = document.getElementById("xMax")
@@ -200,6 +201,7 @@ parametersForm.addEventListener('submit', (event) => {
     cyclePeriodSeconds: cyclePeriodInput.valueAsNumber,
     acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber,
     resolution: resolutionInput.valueAsNumber,
+    waveType: waveTypeInput.value,
     harmonic: harmonicInput.valueAsNumber,
     xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
   }
@@ -219,7 +221,8 @@ function onPSDChartClick (x, idx) {
     type: Messages.GET_PHASE_PROFILE,
     xIndex: idx,
     resolution: 1,
-    harmonic: harmonicInput.valueAsNumber
+    waveType: currentParameters.waveType,
+    harmonic: currentParameters.harmonic
   })
 }
 

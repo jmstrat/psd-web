@@ -8,18 +8,31 @@
 
 namespace {
 
-inline double squareWave(double value) {
+inline double wrapAngle(double value) {
   double wrapped = std::fmod(value, 2.0 * M_PI);
   if (wrapped < 0.0) {
     wrapped += 2.0 * M_PI;
   }
+  return wrapped;
+}
+
+inline double squareWave(double value) {
+  double wrapped = wrapAngle(value);
   return (wrapped >= M_PI) ? -1.0 : 1.0;
+}
+
+inline double triangleWave(double value) {
+  double wrapped = wrapAngle(value);
+  if (wrapped < M_PI) {
+    return 1.0 - (2.0 * wrapped / M_PI);
+  } else {
+    return -3.0 + (2.0 * wrapped / M_PI);
+  }
 }
 
 // Logic shared between runPSD and runPhaseProfile
 struct SimulationParameters {
   int phaseCount;
-  int harmonicFactor;
   double angularFrequency;
   double normalizationFactor;
 };
@@ -27,13 +40,11 @@ struct SimulationParameters {
 inline SimulationParameters calculateSimulationParameters(
   int spectraPerPeriod,
   double phaseResolutionDegrees,
-  int harmonic,
   const double* timeValues
 ) {
   SimulationParameters params;
 
   params.phaseCount = static_cast<int>(std::round(360.0 / phaseResolutionDegrees));
-  params.harmonicFactor = (harmonic == 0) ? 1 : harmonic;
   params.normalizationFactor = 2.0 / spectraPerPeriod;
 
   // A full cycle duration is the difference in start times between the first and last measurement
@@ -88,6 +99,18 @@ inline double calculateMean(
   return mean / spectraPerPeriod;
 }
 
+inline double generateReferenceSample(WaveType waveType, double theta) {
+  switch (waveType) {
+    case WaveType_Square:
+      return squareWave(theta);
+    case WaveType_Triangle:
+      return triangleWave(theta);
+    case WaveType_Sine:
+    default:
+      return std::sin(theta);
+  }
+}
+
 } // namespace
 
 extern "C" {
@@ -103,11 +126,12 @@ void runPSD(
   int spectraPerPeriod,
   int spectrumLength,
   double phaseResolutionDegrees,
+  WaveType waveType,
   int harmonic,
   double* output
 ) {
   // Extract all shared experimental time and frequency dimensions
-  const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, harmonic, timeValues);
+  const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, timeValues);
 
   // Clear the target memory space
   std::fill_n(output, params.phaseCount * spectrumLength, 0.0);
@@ -141,12 +165,12 @@ void runPSD(
       const double t = timeValues[timeIndex];
       const int timeOffset = timeIndex * spectrumLength;
 
-      const double theta = params.harmonicFactor * params.angularFrequency * t + phaseShift;
+      const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
       // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
       // component of amplitude 'A', the resulting peak value in the output array
       // matches 'A' exactly.
-      const double reference = ((harmonic == 0) ? squareWave(theta) : std::sin(theta)) * params.normalizationFactor;
+      const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
       // Remove the DC baseline and multiply by the reference signal
       for (int xIndex = 0; xIndex < spectrumLength; xIndex++) {
@@ -163,12 +187,13 @@ void runPSDForSinglePhase(
   int spectraPerPeriod,
   int spectrumLength,
   double targetPhaseDegrees,
+  WaveType waveType,
   int harmonic,
   double* output
 ) {
   // Extract all shared experimental time and frequency dimensions
   // n.b. phaseResolutionDegrees is not used so we set a dummy value here
-  const auto params = calculateSimulationParameters(spectraPerPeriod, 360.0, harmonic, timeValues);
+  const auto params = calculateSimulationParameters(spectraPerPeriod, 360.0, timeValues);
 
   // Clear the target memory space
   std::fill_n(output, spectrumLength, 0.0);
@@ -201,12 +226,12 @@ void runPSDForSinglePhase(
     const double t = timeValues[timeIndex];
     const int timeOffset = timeIndex * spectrumLength;
 
-    const double theta = params.harmonicFactor * params.angularFrequency * t + phaseShift;
+    const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
     // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
     // component of amplitude 'A', the resulting peak value in the output array
     // matches 'A' exactly.
-    const double reference = ((harmonic == 0) ? squareWave(theta) : std::sin(theta)) * params.normalizationFactor;
+    const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
     // Remove the DC baseline and multiply by the reference signal
     for (int xIndex = 0; xIndex < spectrumLength; xIndex++) {
@@ -225,12 +250,13 @@ void runPhaseProfile(
   int spectraPerPeriod,
   int spectrumLength,
   double phaseResolutionDegrees,
+  WaveType waveType,
   int harmonic,
   int targetXIndex,
   double* outputY
 ) {
   // Extract all shared experimental time and frequency dimensions
-  const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, harmonic, timeValues);
+  const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, timeValues);
 
   // ---------------------------------------------------------------------------
   // DC OFFSET SUBTRACTION (BASELINE NORMALISATION)
@@ -261,12 +287,12 @@ void runPhaseProfile(
     for (int timeIndex = 0; timeIndex < spectraPerPeriod; timeIndex++) {
       const double t = timeValues[timeIndex];
 
-      const double theta = params.harmonicFactor * params.angularFrequency * t + phaseShift;
+      const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
       // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
       // component of amplitude 'A', the resulting peak value in the output array
       // matches 'A' exactly.
-      const double reference = ((harmonic == 0) ? squareWave(theta) : std::sin(theta)) * params.normalizationFactor;
+      const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
       // Remove the DC baseline and multiply by the reference signal
       const double signal = averagedPeriod[timeIndex * spectrumLength + targetXIndex] - mean;

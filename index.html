@@ -48,8 +48,17 @@
         </label>
 
         <label>
-          Harmonic (0 = Square || &gt; 0 = Sine)
-          <input type="number" id="harmonic" value="0">
+          Reference Waveform
+          <select id="waveType">
+            <option value="SINE" selected>Sine</option>
+            <option value="SQUARE">Square</option>
+            <option value="TRIANGLE">Triangle</option>
+          </select>
+        </label>
+
+        <label>
+          Harmonic
+          <input type="number" id="harmonic" value="1">
         </label>
 
         <label>

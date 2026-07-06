@@ -1,5 +1,6 @@
 import { readSpectraFiles } from "./filereader.js"
 import { Messages } from "./messages.js"
+import { WaveType } from "./wavetypes.js"
 import ModuleFactory from "./wasm-dist/psd.js"
 
 // TODO: This file is messy and should be refactored
@@ -36,15 +37,20 @@ function shouldReload (files, config) {
   return true
 }
 
-async function process ({
+async function runPSD ({
   files,
   cyclePeriodSeconds,
   acquisitionIntervalSeconds,
   resolution,
+  waveType,
   harmonic,
   xMin,
   xMax
 }) {
+  if (!Object.keys(WaveType).includes(waveType)) {
+    throw new Error("Unknown wave type")
+  }
+
   let spectrumData
   const filesChanged = shouldReload(files, { cyclePeriodSeconds, acquisitionIntervalSeconds, xMin, xMax })
   if (cachedSpectrumData && !filesChanged) {
@@ -114,6 +120,7 @@ async function process ({
     spectraPerCycle,
     spectrumLength,
     resolution,
+    WaveType[waveType],
     harmonic,
     outputPtr
   )
@@ -173,9 +180,13 @@ async function process ({
   }, transferList)
 }
 
-function getProfile ({ xIndex, resolution, harmonic }) {
+function getProfile ({ xIndex, resolution, waveType, harmonic }) {
   if (!cachedSpectrumData) {
     throw new Error("No cached spectrum data available. Run analysis first.")
+  }
+
+  if (!Object.keys(WaveType).includes(waveType)) {
+    throw new Error("Unknown wave type")
   }
 
   postMessage({
@@ -205,6 +216,7 @@ function getProfile ({ xIndex, resolution, harmonic }) {
     spectraPerCycle,
     spectrumLength,
     resolution,
+    WaveType[waveType],
     harmonic,
     xIndex,
     outputPtr
@@ -259,6 +271,7 @@ function getProfile ({ xIndex, resolution, harmonic }) {
     spectraPerCycle,
     spectrumLength,
     maxPhase,
+    WaveType[waveType],
     harmonic,
     singleOutputPtr
   )
@@ -294,7 +307,7 @@ onmessage = async ({ data }) => {
   switch (data.type) {
     case Messages.PROCESS: {
       try {
-        await process(data)
+        await runPSD(data)
       } catch (err) {
         console.error(err)
         postMessage({
