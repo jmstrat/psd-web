@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Phase Sensitive Detection</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+  <header>
+    <h1>Phase Sensitive Detection</h1>
+  </header>
+
+  <main>
+    <aside id="controls">
+      <section class="panel">
+        <h2>Input</h2>
+        <div class="file-upload">
+          <input type="file" id="fileUpload" hidden multiple>
+          <button type="button" id="chooseFile">Choose file(s)...</button>
+        </div>
+
+        <h2>Status</h2>
+        <div class="status-container">
+          <div id="status">Loading...</div>
+          <progress id="progressBar" style="display: none;"></progress>
+          <div id="progressText" class="muted-text"></div>
+        </div>
+      </section>
+
+      <form class="panel" id="parameters">
+        <h2>Parameters</h2>
+
+        <label>
+          Cycle Period (seconds)
+          <input type="number" id="cyclePeriod">
+        </label>
+
+        <label>
+          Acquisition Interval (seconds)
+          <input type="number" id="acquisitionInterval">
+        </label>
+
+        <label>
+          Harmonic (0 = Square || &gt; 0 = Sine)
+          <input type="number" id="harmonic" value="0">
+        </label>
+
+        <label>
+          Phase Resolution (degrees)
+          <input type="number" id="resolution" value="15">
+        </label>
+
+        <label>
+          x Max
+          <input type="number" id="xMax" placeholder="Infinity">
+        </label>
+
+        <button id="runButton" type="submit" disabled>
+          Run PSD
+        </button>
+      </form>
+
+      <section class="panel" id="metadataPanel">
+        <h2>File Metadata</h2>
+        <div id="metadataContainer">
+          No files loaded
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Help</h2>
+        <p>
+          This is an early stage proof-of-concept. It has not been
+          extensively tested so any output must be carefully checked.
+          In its initial state it has limited filetype support, however,
+          the calculation is general, not specific to any one technique.
+        </p>
+
+        <h3>Requirements</h3>
+        <ul>
+          <li>Data should be provided as individual files (one per time point)</li>
+          <li>
+            Data are assumed to be acquired at a fixed interval specified by
+            &ldquo;Acquisition Interval&rdquo;
+          </li>
+          <li>The first file <strong>must</strong> be at time 0 for the first cycle</li>
+          <li>File names must be named such that they increase numerically with time</li>
+          <li>An incomplete final cycle is ignored</li>
+          <li>
+            The Cycle period does not need to be a multiple of the acquisition time,
+            although this is preferable. Data will be re-binned if not.
+          </li>
+        </ul>
+        <h3>Supported file types</h3>
+        <ul>
+          <li>.gr (PDFGetX3)</li>
+        </ul>
+
+      </section>
+    </aside>
+
+    <section id="plots">
+      <div class="chart-panel">
+        <canvas id="chartPSD"></canvas>
+      </div>
+
+      <div class="chart-panel">
+        <canvas id="chartProfile"></canvas>
+      </div>
+
+      <div class="chart-panel">
+        <canvas id="chartSinglePhase"></canvas>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

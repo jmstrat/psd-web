@@ -1,0 +1,14 @@
+#!/bin/bash
+
+mkdir ../wasm-dist/
+
+# INITIAL_MEMORY=64MB
+emcc psd.cpp -O3 \
+  -s MODULARIZE=1 \
+  -s EXPORT_ES6=1 \
+  -s ENVIRONMENT=worker \
+  -s INITIAL_MEMORY=67108864 \
+  -s ALLOW_MEMORY_GROWTH=1 \
+  -s EXPORTED_FUNCTIONS='["_runPSD", "_runPSDForSinglePhase", "_runPhaseProfile", "_getPSDOutputSize", "_malloc", "_free"]' \
+  -s EXPORTED_RUNTIME_METHODS='["HEAPF64"]' \
+  -o ../wasm-dist/psd.js
