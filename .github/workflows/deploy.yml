@@ -34,8 +34,9 @@ jobs:
 
       - name: Run Build Script
         run: |
-          chmod +x ./wasm/build.sh
-          ./wasm/build.sh
+          cd ./wasm/
+          chmod +x ./build.sh
+          ./build.sh
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
