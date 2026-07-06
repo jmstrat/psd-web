@@ -156,7 +156,7 @@ void runPSD(
   // progressively attenuated over the integration interval.
   // Static backgrounds are removed by the DC subtraction, while
   // uncorrelated noise and out-of-phase components are reduced.
-    for (int phaseIndex = 0; phaseIndex < params.phaseCount; phaseIndex++) {
+  for (int phaseIndex = 0; phaseIndex < params.phaseCount; phaseIndex++) {
     // (radians)
     const double phaseShift = phaseIndex * phaseResolutionDegrees * M_PI / 180.0;
     const int phaseOffset = phaseIndex * spectrumLength;
