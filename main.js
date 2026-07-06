@@ -4,6 +4,7 @@ import {
   destroyPhaseProfile, renderPhaseProfile,
   destroySinglePhase, renderSinglePhase
 } from "./charts.js"
+import { downloadAnalysisArchive } from "./download.js"
 
 // All calculations and file parsing are done in the worker thread
 // The main thread just handles the UI (and plotting)
@@ -12,6 +13,7 @@ const worker = new Worker("worker.js", { type: "module" })
 const status = document.getElementById("status")
 const progressBar = document.getElementById('progressBar')
 const progressText = document.getElementById('progressText')
+const downloadButton = document.getElementById('downloadButton')
 const runButton = document.getElementById("runButton")
 const fileInput = document.getElementById("fileUpload")
 const chooseButton = document.getElementById("chooseFile")
@@ -24,6 +26,10 @@ const harmonicInput = document.getElementById("harmonic")
 const resolutionInput = document.getElementById("resolution")
 const xMaxInput = document.getElementById("xMax")
 
+let currentPsdData = null
+let currentProfileData = null
+let currentSinglePhaseData = null
+let currentParameters = {}
 
 let isWorkerReady = false
 
@@ -136,25 +142,39 @@ worker.onmessage = ({ data }) => {
         status.textContent = "Finished"
         progressBar.style.display = "none"
         progressText.textContent = ""
+        downloadButton.disabled = false
       }
       break
     case Messages.RESULT:
       validateForm()
-      console.time("Plotting PSD")
       destroyPhaseProfile()
       destroySinglePhase()
       renderMetadata(data.metadata)
+
+      // Save data for downloading
+      currentPsdData = data
+      currentProfileData = null
+      currentSinglePhaseData = null
+
+      console.time("Plotting PSD")
       renderPSD(data, onPSDChartClick)
       console.timeEnd("Plotting PSD")
       break
     case Messages.SINGLE_PHASE_RESULT:
       validateForm()
+
+      currentSinglePhaseData = data
+      currentParameters.selectedPhase = data.targetPhase
+
       console.time("Plotting Single Phase")
       renderSinglePhase(data)
       console.timeEnd("Plotting Single Phase")
       break
     case Messages.PHASE_PROFILE_RESULT:
       validateForm()
+
+      currentProfileData = data
+      currentParameters.selectedX = data.selectedX
 
       console.time("Plotting Phase Profile")
       renderPhaseProfile(data)
@@ -175,14 +195,19 @@ parametersForm.addEventListener('submit', (event) => {
   event.preventDefault()
   status.textContent = "Processing..."
   runButton.disabled = true
+
+  currentParameters = {
+    cyclePeriodSeconds: cyclePeriodInput.valueAsNumber,
+    acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber,
+    resolution: resolutionInput.valueAsNumber,
+    harmonic: harmonicInput.valueAsNumber,
+    xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
+  }
+
   worker.postMessage({
       type: Messages.PROCESS,
       files: [...fileInput.files],
-      cyclePeriodSeconds: cyclePeriodInput.valueAsNumber,
-      acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber,
-      resolution: resolutionInput.valueAsNumber,
-      harmonic: harmonicInput.valueAsNumber,
-      xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
+      ...currentParameters
     }
   )
 })
@@ -197,3 +222,12 @@ function onPSDChartClick (x, idx) {
     harmonic: harmonicInput.valueAsNumber
   })
 }
+
+downloadButton.addEventListener("click", () => {
+  downloadAnalysisArchive({
+    psdData: currentPsdData,
+    profileData: currentProfileData,
+    singlePhaseData: currentSinglePhaseData,
+    parameters: currentParameters
+  })
+})
