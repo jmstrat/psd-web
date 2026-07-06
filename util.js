@@ -137,3 +137,39 @@ export function nearest (points, target) {
 
   return diffA < diffB ? idxA : idxB
 }
+
+/**
+ * WARNING: This function mutates objects in place for performance
+ * Do not use if target or source will be used after this function call
+ */
+export function deepMerge (target, source) {
+  if (!isObject(target) || !isObject(source)) {
+    return source
+  }
+
+  for (const key of Object.keys(source)) {
+    const targetValue = target[key]
+    const sourceValue = source[key]
+
+    if (Array.isArray(sourceValue) && Array.isArray(targetValue)) {
+      const len = sourceValue.length
+      for (let i = 0; i < len; i++) {
+        targetValue.push(sourceValue[i])
+      }
+    } else if (isObject(sourceValue)) {
+      if (!(key in target) || !isObject(targetValue)) {
+        target[key] = sourceValue
+      } else {
+        target[key] = deepMerge(targetValue, sourceValue)
+      }
+    } else {
+      target[key] = sourceValue
+    }
+  }
+
+  return target
+}
+
+function isObject (item) {
+  return item && typeof item === 'object' && !Array.isArray(item)
+}

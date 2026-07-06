@@ -3,7 +3,7 @@ import {
   destroyPSD, renderPSD,
   destroyPhaseProfile, renderPhaseProfile,
   destroySinglePhase, renderSinglePhase
-} from "./charts.js"
+} from "./charts/index.js"
 import { downloadAnalysisArchive } from "./download.js"
 
 // All calculations and file parsing are done in the worker thread
