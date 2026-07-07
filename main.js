@@ -175,7 +175,8 @@ worker.onmessage = ({ data }) => {
       validateForm()
 
       currentProfileData = data
-      currentParameters.selectedX = data.selectedX
+      currentParameters.phaseProfileForX = data.selectedX
+      currentParameters.maxPhaseFromProfile = data.maxPhase
 
       console.time("Plotting Phase Profile")
       renderPhaseProfile(data, onPhaseProfileClick)
@@ -233,7 +234,7 @@ function onPhaseProfileClick (x, idx) {
     type: Messages.GET_SINGLE_PHASE,
     waveType: currentParameters.waveType,
     harmonic: currentParameters.harmonic,
-    targetPhase: x
+    targetPhase: Math.round(x)
   })
 }
 

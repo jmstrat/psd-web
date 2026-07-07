@@ -54,6 +54,7 @@ onmessage = async ({ data }) => {
         const { transferList, maxPhase, ...result } = getProfile(data, sharedRunner)
         postMessage({
           type: Messages.PHASE_PROFILE_RESULT,
+          maxPhase,
           ...result
         }, transferList)
 

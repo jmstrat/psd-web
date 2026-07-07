@@ -52,7 +52,7 @@ function getArchiveFileStreams ({ psdData, profileData, singlePhaseData, paramet
     const xlab = singlePhaseData.dataType?.xlab ?? "x_value"
     const ylab = singlePhaseData.dataType?.ylab ?? "intensity"
     filesToArchive.push({
-      name: "in_phase.csv",
+      name: "selected_phase.csv",
       stream: createCSVStream(
         [xlab, ylab],
         singlePhaseData.xAxisData,
