@@ -7,20 +7,24 @@ import { ExpandableBuffer } from "./util.js"
 // the data, but the main logic is elsewhere:
 // parsers.js contains the file reading code and handles support of different file types
 // cycle-merger.js handles averaging the spectra into one single period
-export async function readSpectraFiles (
-  files,
-  cyclePeriodSeconds,
-  acquisitionIntervalSeconds,
-  options = {}
-) {
-  const { xMin = -Infinity, xMax = Infinity, progressCallback } = options
+async function readSpectraFiles (files, options = {}) {
+  const {
+    cyclePeriodSeconds,
+    acquisitionIntervalSeconds,
+    xMin = -Infinity,
+    xMax = Infinity,
+    progressCallback
+  } = options
 
   if (!files || !files.length) {
     throw new Error("No files provided")
   }
 
-  if (!cyclePeriodSeconds) {
-    throw new Error("Invalid cyclePeriodSeconds")
+  if (
+    typeof cyclePeriodSeconds !== "number" ||
+    !isFinite(cyclePeriodSeconds) || cyclePeriodSeconds <= 0
+  ) {
+    throw new Error("Invalid cycle period")
   }
 
   if (
@@ -150,3 +154,42 @@ function compareSignature(a, b) {
     Math.abs(a.last - b.last) < EPSILON
   )
 }
+
+// Simple cache helper to avoid re-reading files
+class CachedFileReader {
+  cachedData = null
+  cachedSignature = ""
+
+  #getSignature (files, config) {
+    if (!files || !files.length) {
+      return ""
+    }
+
+    const filesPart = files.map(f => `${f.name}_${f.size}_${f.lastModified}`).join("|")
+    const configPart = `${config.cyclePeriodSeconds}_${config.acquisitionIntervalSeconds}_${config.xMin}_${config.xMax}`
+    return `${filesPart}||${configPart}`
+  }
+
+  async loadData (files, config) {
+    const newSignature = this.#getSignature(files, config)
+    if (this.cachedSignature === newSignature) {
+      console.log("Using cached data")
+      return this.cachedData
+    }
+    console.time("Read Data")
+    const data = await readSpectraFiles(files, config)
+    console.timeEnd("Read Data")
+    this.cachedData = data
+    this.cachedSignature = newSignature
+    return data
+  }
+
+  getData () {
+    if (!this.cachedData) {
+      throw new Error("No spectrum data available. Load data before running analysis.")
+    }
+    return this.cachedData
+  }
+}
+
+export const SharedFileReader = new CachedFileReader()

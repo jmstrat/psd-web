@@ -43,9 +43,4 @@ void runPhaseProfile(
   double* outputY
 );
 
-int getPSDOutputSize(
-  int spectrumLength,
-  double phaseResolutionDegrees
-);
-
 }

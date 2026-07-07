@@ -115,11 +115,6 @@ inline double generateReferenceSample(WaveType waveType, double theta) {
 
 extern "C" {
 
-int getPSDOutputSize(int spectrumLength, double phaseResolutionDegrees) {
-  const int phaseCount = static_cast<int>(std::round(360.0 / phaseResolutionDegrees));
-  return phaseCount * spectrumLength;
-}
-
 void runPSD(
   const double* averagedPeriod,
   const double* timeValues,
