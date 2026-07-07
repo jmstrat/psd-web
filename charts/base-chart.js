@@ -19,6 +19,10 @@ import { onSingleClick, deepMerge } from "../util.js"
 Chart.register(LineController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Legend, Decimation, zoomPlugin)
 
 export function createBaseChart (ctx, userConfig = {}, onclick) {
+  // We abort this on destroy to remove listeners
+  const controller = new AbortController()
+  const { signal } = controller
+
   const defaults = {
     type: 'line',
     data: {
@@ -83,21 +87,21 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
         }
       }
     },
-    plugins: [ box, verticalHoverLine ]
+    plugins: [
+      box,
+      verticalHoverLine,
+      { id: 'destroyListener', afterDestroy () { controller.abort() }}
+    ]
   }
 
   // Note this will mutate defaults & userConfig
   const config = deepMerge(defaults, userConfig)
   const chart = new Chart(ctx, config)
 
-  chart.canvas.addEventListener('dblclick', () => {
-    if (typeof chart.resetZoom === 'function') {
-      chart.resetZoom('none')
-    }
-  })
-
   if (onclick) {
-    onSingleClick(chart.canvas, (event) => {
+    onSingleClick(
+      ctx.canvas,
+      (event) => {
         const activeElements = chart.getElementsAtEventForMode(event, 'index', { intersect: false }, false)
 
         if (!activeElements || activeElements.length === 0) {
@@ -116,8 +120,16 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
         }
 
         onclick(snappedX, nearestIndex)
-    })
+      },
+      signal
+    )
   }
+
+  chart.canvas.addEventListener('dblclick', () => {
+    if (typeof chart.resetZoom === 'function') {
+      chart.resetZoom('none')
+    }
+  }, { signal })
 
   return chart
 }

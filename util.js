@@ -77,10 +77,10 @@ export class ExpandableBuffer {
 
 // as addEventListener("click", callback) but with a small debounce to ignore
 // double clicks
-export function onSingleClick (element, callback, delay = 200) {
+export function onSingleClick (element, callback, signal, delay = 200) {
   let timer = null
 
-  element.addEventListener("click", (event) => {
+  const handler = (event) => {
     // If the browser registers a double-click, cancel the pending single click
     if (event.detail > 1) {
       clearTimeout(timer)
@@ -96,7 +96,8 @@ export function onSingleClick (element, callback, delay = 200) {
     timer = setTimeout(() => {
       callback(preservedEvent)
     }, delay)
-  })
+  }
+  element.addEventListener("click", handler, { signal })
 }
 
 // Finds the index of a point in an array nearest to the target value
