@@ -32,22 +32,11 @@ The processing has not been heavily tested. Do not rely solely on this tool with
 
 ## Development
 
-The javascript side of this application currently does not have a build process. It depends on chart.js which is downloaded at runtime from a CDN. The PSD calculation is written in C++, which requires compiling to WebAssembly.
+The PSD calculation is written in C++ and is compiled to WebAssembly.
+
+The application is built using Vite, with dependencies managed by npm.
 
 ### Requirements
 
 Install Emscripten:
 https://emscripten.org/docs/getting_started/downloads.html
-
-### Build
-
-```bash
-cd wasm
-./build.sh
-```
-
-### Serve
-
-Use any local web server.
-
-For example `python -m http.server`

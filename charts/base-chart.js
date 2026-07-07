@@ -9,8 +9,8 @@ import {
   Tooltip,
   Legend,
   Decimation
-} from "https://cdn.jsdelivr.net/npm/chart.js@4.5.1/+esm"
-import zoomPlugin from 'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.2.0/+esm'
+} from "chart.js"
+import zoomPlugin from 'chartjs-plugin-zoom'
 
 import { box, verticalHoverLine } from './util.js'
 

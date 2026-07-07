@@ -30,7 +30,7 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
         options: {
           layout: {
             padding: {
-              right: 50
+              right: 55
             }
           },
           plugins: {

@@ -3,146 +3,265 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description"
-  content="A web application that implements phase-sensitive detection for time-resolved spectroscopy. Users can upload raw data and isolate weak, modulated spectral responses. All data are processed locally within the web browser to ensure fast performance and privacy for scientific research."/>
+  <meta name="description"
+  content="A web application that implements phase-sensitive detection for time-resolved spectroscopy. Users can upload raw data and isolate weak, modulated spectral responses.">
   <meta name='copyright' content='J Stratford'>
   <meta property="og:title" content="Phase Sensitive Detection">
   <meta property="og:description" content="A web application that implements phase-sensitive detection for time-resolved spectroscopy.">
   <meta property="og:type" content="website">
-
   <title>Phase Sensitive Detection</title>
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body>
+<body class="bg-slate-100 font-sans text-slate-900">
+  <div class="min-h-screen">
+    <header class="fixed inset-x-0 top-0 z-40 border-b border-slate-200 bg-slate-50">
+      <div class="mx-auto flex h-20 items-center justify-between px-8">
 
-  <header>
-    <h1>Phase Sensitive Detection</h1>
-  </header>
-
-  <main>
-    <aside id="controls">
-      <section class="panel">
-        <h2>Input</h2>
-        <div class="file-upload">
-          <input type="file" id="fileUpload" hidden multiple>
-          <button type="button" id="chooseFile">Choose file(s)...</button>
+        <div>
+          <h1 class="text-3xl font-semibold tracking-tight">
+            Phase Sensitive Detection
+          </h1>
+          <p class="mt-1 text-sm text-slate-500">
+            Phase-sensitive detection analysis tool for time-resolved spectroscopy
+          </p>
         </div>
 
-        <h2>Status</h2>
-        <div class="status-container">
-          <div id="status">Loading...</div>
-          <progress id="progressBar" style="display: none;"></progress>
-          <div id="progressText" class="muted-text"></div>
-        </div>
+        <div class="flex items-center gap-4">
+          <div id="statusBadge"
+            class="rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700">
+            <span id="status">Ready</span>
+          </div>
 
-        <h2>Results</h2>
-        <button id="downloadButton" type="button" disabled>
-          Download
-        </button>
+          <button id="downloadButton" disabled type="button"
+            class="px-4 py-2 btn-secondary">
+            Download Results
+          </button>
+
+          <button id="helpButton" type="button"
+            class="flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900">
+            ?
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div id="progressContainer" aria-live="polite" class="pointer-events-none fixed right-6 top-24 z-50 w-80 rounded-xl border border-slate-200 bg-white p-3 shadow-lg opacity-0 transition-opacity duration-200">
+      <div class="mb-1.5 flex items-center justify-between">
+        <span id="progressText" class="text-xs font-medium text-slate-700">
+          Processing...
+        </span>
+      </div>
+      <progress id="progressBar" max="100"
+        class="h-1.5 w-full appearance-none overflow-hidden rounded-full border-0 bg-slate-200
+               [&::-webkit-progress-bar]:rounded-full [&::-webkit-progress-bar]:bg-slate-200
+               [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-blue-600 [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-150 [&::-webkit-progress-value]:ease-out
+               [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-blue-600 [&::-moz-progress-bar]:transition-[width] [&::-moz-progress-bar]:duration-150 [&::-moz-progress-bar]:ease-out">
+      </progress>
+    </div>
+
+    <main class="grid min-h-screen grid-cols-[340px_1fr] pt-20">
+      <aside class="overflow-y-auto border-r border-slate-200 bg-white">
+        <div class="space-y-4 p-4">
+          <!-- Upload -->
+          <section class="panel p-4">
+            <h2 class="panel-title mb-4">
+              Upload Data
+            </h2>
+            <input type="file" id="fileUpload" hidden multiple>
+            <button id="chooseFile" type="button"
+            class="group flex h-20 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 transition hover:border-blue-500 hover:bg-blue-50">
+              <svg xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.8"
+                stroke="currentColor"
+                class="mb-1 h-6 w-6 text-slate-400 transition group-hover:text-blue-600">
+
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 16V4m0 0l-4 4m4-4l4 4M4 17.5v1A1.5 1.5 0 005.5 20h13a1.5 1.5 0 001.5-1.5v-1"/>
+              </svg>
+              <span class="text-xs font-semibold">
+                  Choose data files
+              </span>
+            </button>
+
+            <p id="uploadStatus" class="mt-2 text-center text-xs text-slate-500">
+              No files selected
+            </p>
+          </section>
+
+          <form id="parameters" class="panel p-4">
+            <h2 class="panel-title mb-4">
+              Analysis Settings
+            </h2>
+            <div class="space-y-4">
+              <div>
+                <label for="cyclePeriod" class="form-label">Cycle Period</label>
+                <div class="input-group">
+                  <input id="cyclePeriod" type="number"
+                    class="input-group-field" >
+                  <span class="input-unit">
+                    s
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label for="acquisitionInterval" class="form-label">Acquisition Interval</label>
+                <div class="input-group">
+                  <input id="acquisitionInterval" type="number"
+                    class="input-group-field" >
+                  <span class="input-unit">
+                    s
+                  </span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-[2fr_1fr] gap-3">
+                <div>
+                  <label for="waveType" class="form-label">
+                    Reference Waveform
+                  </label>
+                  <select id="waveType" class="form-input bg-white">
+                    <option value="SINE">Sine</option>
+                    <option value="SQUARE">Square</option>
+                    <option value="TRIANGLE">Triangle</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="harmonic" class="form-label">
+                    Harmonic
+                  </label>
+                  <input id="harmonic" type="number" value="1" class="form-input">
+                </div>
+              </div>
+
+              <div>
+                <label for="resolution" class="form-label">Resolution</label>
+                <div class="input-group">
+                  <input id="resolution" type="number" value="15"
+                    class="input-group-field" >
+                  <span class="input-unit">
+                    °
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label for="xMax" class="form-label">x Axis Max</label>
+                <input id="xMax" placeholder="Unlimited" type="number" class="form-input">
+              </div>
+            </div>
+            <button id="runButton" disabled type="submit"
+            class="mt-6 h-10 w-full btn-primary">
+              Run PSD Analysis
+            </button>
+          </form>
+
+          <!-- Metadata -->
+          <details open class="panel">
+            <summary class="cursor-pointer select-none px-4 py-3 panel-title">
+              File Metadata
+            </summary>
+            <div id="metadataContainer"
+            class="border-t border-slate-200 px-4 py-3 text-xs text-slate-600 flex flex-col gap-3 max-h-[250px] overflow-y-auto scrollbar-simple">
+              No files loaded.
+            </div>
+          </details>
+
+          <footer class="py-2 text-center text-[11px] text-slate-400">
+            <p>J Stratford <time datetime="2026">2026</time> | <a href="https://github.com/jmstrat/psd-web" class="hover:underline">Source</a></p>
+          </footer>
+        </div>
+      </aside>
+
+      <!-- ================================================= -->
+      <!-- Charts -->
+      <!-- ================================================= -->
+      <section class="overflow-y-auto">
+        <div class="space-y-4 p-4">
+          <!-- PSD -->
+          <section class="relative panel p-4">
+            <div class="chart-label">
+              <h2>PSD Spectrum</h2>
+            </div>
+            <div class="h-[290px] relative">
+              <canvas id="chartPSD" class="w-full h-full"></canvas>
+            </div>
+          </section>
+
+          <!-- Profile -->
+          <section class="relative panel p-4">
+            <div class="chart-label">
+              <h2>Phase Profile</h2>
+            </div>
+            <div class="h-[290px] relative">
+              <canvas id="chartProfile" class="w-full h-full"></canvas>
+            </div>
+          </section>
+
+          <!-- Single -->
+          <section class="relative panel p-4">
+            <div class="chart-label">
+              <h2>Selected Phase</h2>
+            </div>
+            <div class="h-[290px] relative">
+              <canvas id="chartSinglePhase" class="w-full h-full"></canvas>
+            </div>
+          </section>
+        </div>
       </section>
+    </main>
+  </div>
 
-      <form class="panel" id="parameters">
-        <h2>Parameters</h2>
-
-        <label>
-          Cycle Period (seconds)
-          <input type="number" id="cyclePeriod">
-        </label>
-
-        <label>
-          Acquisition Interval (seconds)
-          <input type="number" id="acquisitionInterval">
-        </label>
-
-        <label>
-          Reference Waveform
-          <select id="waveType">
-            <option value="SINE" selected>Sine</option>
-            <option value="SQUARE">Square</option>
-            <option value="TRIANGLE">Triangle</option>
-          </select>
-        </label>
-
-        <label>
-          Harmonic
-          <input type="number" id="harmonic" value="1">
-        </label>
-
-        <label>
-          Phase Resolution (degrees)
-          <input type="number" id="resolution" value="15">
-        </label>
-
-        <label>
-          x Max
-          <input type="number" id="xMax" placeholder="Infinity">
-        </label>
-
-        <button id="runButton" type="submit" disabled>
-          Run PSD
+  <div id="helpModal" role="dialog" aria-modal="true"
+  class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div class="mx-4 w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
+      <div class="mb-6 flex items-center justify-between">
+        <h2 class="text-2xl font-semibold">
+          Help
+        </h2>
+        <button id="closeHelp" type="button" class="rounded-lg p-2 hover:bg-slate-100">
+          ✕
         </button>
-      </form>
-
-      <section class="panel" id="metadataPanel">
-        <h2>File Metadata</h2>
-        <div id="metadataContainer">
-          No files loaded
-        </div>
-      </section>
-
-      <section class="panel">
-        <h2>Help</h2>
+      </div>
+      <div class="space-y-6 text-sm leading-7 text-slate-600">
         <p>
           This is an early stage proof-of-concept. It has not been
           extensively tested so any output must be carefully checked.
           In its initial state it has limited filetype support, however,
           the calculation is general, not specific to any one technique.
         </p>
-
-        <h3>Requirements</h3>
-        <ul>
-          <li>Data should be provided as individual files (one per time point)</li>
-          <li>
-            Data are assumed to be acquired at a fixed interval specified by
-            &ldquo;Acquisition Interval&rdquo;
-          </li>
-          <li>The first file <strong>must</strong> be at time 0 for the first cycle</li>
-          <li>File names must be named such that they increase numerically with time</li>
-          <li>An incomplete final cycle is ignored</li>
-          <li>
-            The Cycle period does not need to be a multiple of the acquisition time,
-            although this is preferable. Data will be re-binned if not.
-          </li>
-        </ul>
-        <h3>Supported file types</h3>
-        <ul>
-          <li>.gr (PDFGetX3)</li>
-        </ul>
-
-      </section>
-
-       <section class="panel footer-panel">
-          <p>J Stratford <time datetime="2026">2026</time> | <a href="https://github.com/jmstrat/psd-web">Source</a></p>
-
-       </section>
-    </aside>
-
-    <section id="plots">
-      <div class="chart-panel">
-        <canvas id="chartPSD"></canvas>
+        <div>
+          <h3 class="mb-2 font-semibold text-slate-900">
+            Requirements
+          </h3>
+          <ul class="list-disc space-y-2 pl-5">
+            <li>Data should be provided as individual files (one per time point)</li>
+            <li>
+              Data are assumed to be acquired at a fixed interval specified by
+              &ldquo;Acquisition Interval&rdquo;
+            </li>
+            <li>The first file <strong>must</strong> be at time 0 for the first cycle</li>
+            <li>File names must be named such that they increase numerically with time</li>
+            <li>An incomplete final cycle is ignored</li>
+            <li>
+              The Cycle period does not need to be a multiple of the acquisition time,
+              although this is preferable. Data will be re-binned if not.
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="mb-2 font-semibold text-slate-900">
+            Supported Files
+          </h3>
+          <p>.gr (PDFGetX3)</p>
+          <p>.xy (2 column)</p>
+        </div>
       </div>
-
-      <div class="chart-panel">
-        <canvas id="chartProfile"></canvas>
-      </div>
-
-      <div class="chart-panel">
-        <canvas id="chartSinglePhase"></canvas>
-      </div>
-    </section>
-
-  </main>
+    </div>
+  </div>
 
   <script type="module" src="main.js"></script>
 </body>

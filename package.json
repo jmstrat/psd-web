@@ -1,0 +1,33 @@
+{
+  "name": "phase-sensitive-detection-web-app",
+  "version": "1.0.0",
+  "description": "This interactive web application functions as a browser-based phase sensitive detection calculator specifically designed for time-resolved spectroscopy. It isolates weak, time-dependent signals buried under experimental background noise or unchanging background signals.",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jmstrat/psd-web.git"
+  },
+  "author": "J Stratford",
+  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/jmstrat/psd-web/issues"
+  },
+  "homepage": "https://github.com/jmstrat/psd-web#readme",
+  "scripts": {
+    "compile:wasm": "cd ./wasm && ./build.sh",
+    "dev": "npm run compile:wasm && vite",
+    "prebuild": "npm run compile:wasm",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "tailwindcss": "^4.3.2",
+    "vite": "^8.1.3"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1",
+    "chartjs-plugin-zoom": "^2.2.0",
+    "fflate": "^0.8.3"
+  }
+}

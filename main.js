@@ -1,3 +1,4 @@
+import './styles.css'
 import { Messages } from "./messages.js"
 import {
   destroyPSD, renderPSD,
@@ -6,18 +7,27 @@ import {
 } from "./charts/index.js"
 import { downloadAnalysisArchive } from "./download.js"
 
+import workerModule from './worker.js?worker'
+
 // All calculations and file parsing are done in the worker thread
 // The main thread just handles the UI (and plotting)
-const worker = new Worker("worker.js", { type: "module" })
+const worker = new workerModule({ type: 'module' })
 
 const status = document.getElementById("status")
+const progressContainer = document.getElementById('progressContainer')
 const progressBar = document.getElementById('progressBar')
 const progressText = document.getElementById('progressText')
+
 const downloadButton = document.getElementById('downloadButton')
 const runButton = document.getElementById("runButton")
 const fileInput = document.getElementById("fileUpload")
+const fileStatus = document.getElementById("uploadStatus")
 const chooseButton = document.getElementById("chooseFile")
 const metadataContainer = document.getElementById("metadataContainer")
+
+const helpButton = document.getElementById("helpButton")
+const closeHelp = document.getElementById("closeHelp")
+const helpModal = document.getElementById("helpModal")
 
 const parametersForm = document.getElementById("parameters")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
@@ -46,13 +56,17 @@ function updateReadyState () {
   if (!hasFiles) {
     runButton.disabled = true
     status.textContent = "Please select files to begin"
+    fileStatus.textContent = "No files selected"
+
     progressText.textContent = ""
-    progressBar.style.display = "none"
+    progressContainer.classList.add("opacity-0")
+    progressContainer.classList.remove("opacity-100")
     return
   }
 
   runButton.disabled = false
   status.textContent = "Ready"
+  fileStatus.textContent = `${fileInput.files.length} files ready to process`
 }
 
 function validateForm () {
@@ -80,36 +94,37 @@ function validateForm () {
 function renderMetadata (metadata) {
   metadataContainer.innerHTML = ""
 
-  Object.entries(metadata).forEach(([key, value]) => {
+  for (const [key, value] of Object.entries(metadata)) {
     const row = document.createElement("div")
-    row.className = "meta-row"
+    row.className = "flex flex-col gap-1 border-b border-dashed border-slate-200 pb-3 last:border-0 last:pb-0"
 
     const label = document.createElement("span")
-    label.className = "meta-label"
-    label.textContent = key.replace(/([A-Z])/g, ' $1').trim()
+    label.className = "font-semibold text-slate-700"
+    const humanKey = key.replace(/([A-Z])/g, ' $1').trim()
+    label.textContent = humanKey.charAt(0).toUpperCase() + humanKey.slice(1)
 
     row.appendChild(label)
 
     if (Array.isArray(value)) {
       const badgeWrapper = document.createElement("div")
-      badgeWrapper.className = "meta-badges"
+      badgeWrapper.className = "flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto mt-0.5 scrollbar-simple"
 
-      value.forEach(item => {
+      for (const item of value) {
         const badge = document.createElement("span")
-        badge.className = "meta-badge"
+        badge.className = "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600"
         badge.textContent = item
         badgeWrapper.appendChild(badge)
-      })
+      }
       row.appendChild(badgeWrapper)
     } else {
       const valueSpan = document.createElement("span")
-      valueSpan.className = "meta-value"
+      valueSpan.className = "text-slate-500 break-all"
       valueSpan.textContent = value
       row.appendChild(valueSpan)
     }
 
     metadataContainer.appendChild(row)
-  })
+  }
 }
 
 chooseButton.addEventListener("click", () => fileInput.click())
@@ -129,7 +144,8 @@ worker.onmessage = ({ data }) => {
       updateReadyState()
       break
     case Messages.PROGRESS:
-      progressBar.style.display = "block"
+      progressContainer.classList.remove("opacity-0")
+      progressContainer.classList.add("opacity-100")
 
       if (data.stage === 'read') {
         status.textContent = "Reading files..."
@@ -141,7 +157,8 @@ worker.onmessage = ({ data }) => {
         progressBar.removeAttribute('value')
       } else if (data.stage === 'finished') {
         status.textContent = "Finished"
-        progressBar.style.display = "none"
+        progressContainer.classList.add("opacity-0")
+        progressContainer.classList.remove("opacity-100")
         progressText.textContent = ""
         downloadButton.disabled = false
       }
@@ -184,7 +201,8 @@ worker.onmessage = ({ data }) => {
       break
     case Messages.ERROR:
       status.textContent = `Error: ${data.message}`
-      progressBar.style.display = "none"
+      progressContainer.classList.add("opacity-0")
+      progressContainer.classList.remove("opacity-100")
       progressText.textContent = ""
       validateForm()
       break
@@ -245,4 +263,12 @@ downloadButton.addEventListener("click", () => {
     singlePhaseData: currentSinglePhaseData,
     parameters: currentParameters
   })
+})
+
+helpButton.addEventListener('click', () => helpModal.classList.remove("hidden"))
+closeHelp.addEventListener('click', () => helpModal.classList.add("hidden"))
+helpModal.addEventListener('click', (e) => {
+  if (e.target === helpModal) {
+    helpModal.classList.add("hidden")
+  }
 })

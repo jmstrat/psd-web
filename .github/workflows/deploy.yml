@@ -29,16 +29,22 @@ jobs:
       - name: Verify Emscripten
         run: emcc -v
 
-      - name: Run Build Script
-        run: |
-          cd ./wasm/
-          chmod +x ./build.sh
-          ./build.sh
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install Node Dependencies
+        run: npm ci
+
+      - name: Run Production Build
+        run: npm run build
 
       - name: Upload Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: './dist'
 
   deploy:
     needs: build

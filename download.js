@@ -1,5 +1,5 @@
 import { createCSVStream } from "./csv.js"
-import { Zip, ZipPassThrough } from 'https://cdn.jsdelivr.net/npm/fflate@0.8.3/+esm'
+import { Zip, ZipPassThrough } from 'fflate'
 
 function getArchiveMetadataStream (parameters) {
   const encoder = new TextEncoder()
