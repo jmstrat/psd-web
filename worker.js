@@ -84,6 +84,31 @@ onmessage = async ({ data }) => {
       }
       break
     }
+    case Messages.GET_SINGLE_PHASE: {
+      try {
+        postMessage({
+          type: Messages.PROGRESS,
+          stage: "calculate"
+        })
+        const { transferList, ...result } = getSinglePhase(data)
+        postMessage({
+          type: Messages.SINGLE_PHASE_RESULT,
+          ...result,
+          targetPhase: data.targetPhase
+        }, transferList)
+        postMessage({
+          type: Messages.PROGRESS,
+          stage: "finished"
+        })
+      } catch (err) {
+        console.error(err)
+        postMessage({
+          type: Messages.ERROR,
+          message: err?.message ?? err
+        })
+      }
+      break
+    }
   }
 }
 

@@ -178,7 +178,7 @@ worker.onmessage = ({ data }) => {
       currentParameters.selectedX = data.selectedX
 
       console.time("Plotting Phase Profile")
-      renderPhaseProfile(data)
+      renderPhaseProfile(data, onPhaseProfileClick)
       console.timeEnd("Plotting Phase Profile")
       break
     case Messages.ERROR:
@@ -223,6 +223,17 @@ function onPSDChartClick (x, idx) {
     resolution: 1,
     waveType: currentParameters.waveType,
     harmonic: currentParameters.harmonic
+  })
+}
+
+function onPhaseProfileClick (x, idx) {
+  status.textContent = "Processing..."
+  runButton.disabled = true
+  worker.postMessage({
+    type: Messages.GET_SINGLE_PHASE,
+    waveType: currentParameters.waveType,
+    harmonic: currentParameters.harmonic,
+    targetPhase: x
   })
 }
 
