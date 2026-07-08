@@ -97,8 +97,7 @@
               <div>
                 <label for="cyclePeriod" class="form-label">Cycle Period</label>
                 <div class="input-group">
-                  <input id="cyclePeriod" type="number"
-                    class="input-group-field" >
+                  <input id="cyclePeriod" type="number" step="any" class="input-group-field">
                   <span class="input-unit">
                     s
                   </span>
@@ -108,8 +107,7 @@
               <div>
                 <label for="acquisitionInterval" class="form-label">Acquisition Interval</label>
                 <div class="input-group">
-                  <input id="acquisitionInterval" type="number"
-                    class="input-group-field" >
+                  <input id="acquisitionInterval" type="number" step="any" class="input-group-field">
                   <span class="input-unit">
                     s
                   </span>
@@ -132,15 +130,14 @@
                   <label for="harmonic" class="form-label">
                     Harmonic
                   </label>
-                  <input id="harmonic" type="number" value="1" class="form-input">
+                  <input id="harmonic" type="number" value="1" step="1" class="form-input">
                 </div>
               </div>
 
               <div>
                 <label for="resolution" class="form-label">Resolution</label>
                 <div class="input-group">
-                  <input id="resolution" type="number" value="15"
-                    class="input-group-field" >
+                  <input id="resolution" type="number" step="any" value="15" class="input-group-field">
                   <span class="input-unit">
                     °
                   </span>
@@ -150,12 +147,12 @@
               <div class="grid grid-cols-[1fr_1fr] gap-3">
                 <div>
                   <label for="xMin" class="form-label">x Axis Min</label>
-                  <input id="xMin" placeholder="Unlimited" type="number" class="form-input">
+                  <input id="xMin" placeholder="Unlimited" type="number" step="any" class="form-input">
                 </div>
 
                 <div>
                   <label for="xMax" class="form-label">x Axis Max</label>
-                  <input id="xMax" placeholder="Unlimited" type="number" class="form-input">
+                  <input id="xMax" placeholder="Unlimited" type="number" step="any" class="form-input">
                 </div>
               </div>
 
