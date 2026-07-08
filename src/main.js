@@ -203,12 +203,25 @@ worker.onmessage = ({ data }) => {
     case Messages.AVERAGED_PERIOD_RESULT:
       // We only request the average period for downloading
       // so all we need to do here is trigger the download
+      let images = {
+        psd: document.getElementById('chartPSD')
+      }
+
+      if (currentProfileData) {
+        images['phase_profile'] = document.getElementById('chartProfile')
+      }
+
+      if (currentSinglePhaseData) {
+        images['selected_phase'] = document.getElementById('chartSinglePhase')
+      }
+
       downloadAnalysisArchive({
         averagePeriod: data,
         psdData: currentPsdData,
         profileData: currentProfileData,
         singlePhaseData: currentSinglePhaseData,
-        parameters: currentParameters
+        parameters: currentParameters,
+        canvases: images
       })
     case Messages.ERROR:
       status.textContent = `Error: ${data.message}`

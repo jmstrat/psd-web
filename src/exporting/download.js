@@ -24,12 +24,56 @@ function getMultiColumnStream (data) {
   return createCSVStream(headings, data.xAxisData, yValueArrays)
 }
 
+function getCanvasWithBackground (sourceCanvas, colour) {
+  const { width, height } = sourceCanvas
+  const offscreenCanvas = document.createElement('canvas')
+  offscreenCanvas.width = width
+  offscreenCanvas.height = height
+  const ctx = offscreenCanvas.getContext('2d')
+  ctx.fillStyle = colour
+  ctx.fillRect(0, 0, width, height)
+  ctx.drawImage(sourceCanvas, 0, 0)
+  return offscreenCanvas
+}
+
+function getCanvasStream (canvas, type='image/png', background='#fff') {
+  return new ReadableStream({
+    async start (controller) {
+      try {
+        const blob = await new Promise((resolve, reject) => {
+          getCanvasWithBackground(canvas, background).toBlob((b) => {
+            if (b) {
+              resolve(b)
+            } else {
+              reject(new Error("Canvas blob generation failed"))
+            }
+          }, type)
+        })
+
+        const reader = blob.stream().getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+          controller.enqueue(value)
+        }
+        controller.close()
+      } catch (error) {
+        controller.error(error)
+      }
+    }
+  })
+}
+
+
 function getArchiveFileStreams ({
   averagePeriod,
   psdData,
   profileData,
   singlePhaseData,
-  parameters
+  parameters,
+  canvases
 }) {
   if (!psdData) {
     alert("No processed datasets found to export.")
@@ -65,6 +109,13 @@ function getArchiveFileStreams ({
         singlePhaseData.xAxisData,
         [singlePhaseData.yAxisData]
       )
+    })
+  }
+
+  for (const [ filename, canvas ] of Object.entries(canvases)) {
+    filesToArchive.push({
+      name: `${filename}.png`,
+      stream: getCanvasStream(canvas)
     })
   }
 
