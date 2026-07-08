@@ -2,7 +2,6 @@
   "name": "phase-sensitive-detection-web-app",
   "version": "1.0.0",
   "description": "This interactive web application functions as a browser-based phase sensitive detection calculator specifically designed for time-resolved spectroscopy. It isolates weak, time-dependent signals buried under experimental background noise or unchanging background signals.",
-  "main": "main.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/jmstrat/psd-web.git"

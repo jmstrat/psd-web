@@ -1,6 +1,6 @@
 #!/bin/bash
 
-mkdir ../wasm-dist/
+mkdir ../wasm-build/
 
 # INITIAL_MEMORY=64MB
 emcc psd.cpp -O3 \
@@ -11,4 +11,4 @@ emcc psd.cpp -O3 \
   -s ALLOW_MEMORY_GROWTH=1 \
   -s EXPORTED_FUNCTIONS='["_runPSD", "_runPSDForSinglePhase", "_runPhaseProfile", "_malloc", "_free"]' \
   -s EXPORTED_RUNTIME_METHODS='["HEAPF64"]' \
-  -o ../wasm-dist/psd.js
+  -o ../wasm-build/psd.js

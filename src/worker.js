@@ -1,11 +1,11 @@
 import { Messages } from "./messages.js"
-import { SharedFileReader } from "./filereader.js"
+import { SharedFileReader } from "./importing/filereader.js"
 import {
   allocateRunner,
   runPSD,
   getProfile,
   getSinglePhase
-} from "./psd.js"
+} from "./analysis/psd.js"
 
 onmessage = async ({ data }) => {
   switch (data.type) {

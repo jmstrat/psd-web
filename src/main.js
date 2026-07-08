@@ -5,13 +5,13 @@ import {
   destroyPhaseProfile, renderPhaseProfile,
   destroySinglePhase, renderSinglePhase
 } from "./charts/index.js"
-import { downloadAnalysisArchive } from "./download.js"
+import { downloadAnalysisArchive } from "./exporting/download.js"
 
 import workerModule from './worker.js?worker'
 
 // All calculations and file parsing are done in the worker thread
 // The main thread just handles the UI (and plotting)
-const worker = new workerModule({ type: 'module' })
+const worker = new workerModule()
 
 const status = document.getElementById("status")
 const progressContainer = document.getElementById('progressContainer')

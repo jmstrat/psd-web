@@ -155,4 +155,4 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-wasm-dist
+wasm-build

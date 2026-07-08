@@ -1,6 +1,6 @@
-import { SharedFileReader } from "./filereader.js"
+import { SharedFileReader } from "@/importing/filereader.js"
 import { WaveType } from "./wavetypes.js"
-import Runner from "./wasm/module.js"
+import Runner from "./wasm-runner.js"
 
 // Note that the actual calculations are done in a wasm module
 // This file serves to wrap the module to facilitate memory management etc.

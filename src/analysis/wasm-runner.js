@@ -1,4 +1,4 @@
-import ModuleFactory from "../wasm-dist/psd.js"
+import ModuleFactory from "@wasm/psd.js"
 
 const Module = await ModuleFactory()
 
