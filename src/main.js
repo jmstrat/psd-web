@@ -163,7 +163,7 @@ worker.onmessage = ({ data }) => {
         downloadButton.disabled = false
       }
       break
-    case Messages.RESULT:
+    case Messages.PSD_RESULT:
       validateForm()
       destroyPhaseProfile()
       destroySinglePhase()
@@ -199,6 +199,16 @@ worker.onmessage = ({ data }) => {
       renderPhaseProfile(data, onPhaseProfileClick)
       console.timeEnd("Plotting Phase Profile")
       break
+    case Messages.AVERAGED_PERIOD_RESULT:
+      // We only request the average period for downloading
+      // so all we need to do here is trigger the download
+      downloadAnalysisArchive({
+        averagePeriod: data,
+        psdData: currentPsdData,
+        profileData: currentProfileData,
+        singlePhaseData: currentSinglePhaseData,
+        parameters: currentParameters
+      })
     case Messages.ERROR:
       status.textContent = `Error: ${data.message}`
       progressContainer.classList.add("opacity-0")
@@ -226,7 +236,7 @@ parametersForm.addEventListener('submit', (event) => {
   }
 
   worker.postMessage({
-      type: Messages.PROCESS,
+      type: Messages.IMPORT_AND_RUN_PSD,
       files: [...fileInput.files],
       ...currentParameters
     }
@@ -257,11 +267,11 @@ function onPhaseProfileClick (x, idx) {
 }
 
 downloadButton.addEventListener("click", () => {
-  downloadAnalysisArchive({
-    psdData: currentPsdData,
-    profileData: currentProfileData,
-    singlePhaseData: currentSinglePhaseData,
-    parameters: currentParameters
+  // We only request the average period for downloading
+  // the download is triggered by the return message
+  // All other data are available in this thread
+  worker.postMessage({
+    type: Messages.GET_AVERAGED_PERIOD
   })
 })
 

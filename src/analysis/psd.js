@@ -1,4 +1,5 @@
 import { SharedFileReader } from "@/importing/filereader.js"
+import { CycleMerger } from "@/importing/cycle-merger.js"
 import { WaveType } from "./wavetypes.js"
 import Runner from "./wasm-runner.js"
 
@@ -8,7 +9,7 @@ import Runner from "./wasm-runner.js"
 // SharedFileReader must have data available before calling the functions
 // in this module.
 
-// Each function can (optinally) take a runner argument generated with this
+// Each function can (optionally) take a runner argument generated with this
 // function to allow running multiple functions without multiple copies of
 // the raw data
 export function allocateRunner () {
@@ -82,13 +83,8 @@ export function runPSD (
 
   for (let phaseIndex = 0; phaseIndex < phaseCount; phaseIndex++) {
     const phaseAngle = phaseIndex * resolution
-    const offset = phaseIndex * spectrumLength
-
-    const phaseYData = new Float64Array(
-      result.buffer,
-      result.byteOffset + (offset * Float64Array.BYTES_PER_ELEMENT),
-      spectrumLength
-    ).slice()
+    const phaseYData = CycleMerger.extractDataset(result, spectrumLength, phaseIndex)
+                       .slice()
 
     transferList.push(phaseYData.buffer)
 

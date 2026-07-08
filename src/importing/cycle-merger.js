@@ -4,6 +4,19 @@
 // Note that acqTime is relative to the start of the experiment, the first datapoint
 // should have acqTime = 0
 export class CycleMerger {
+  // This is essentially the inverse of getAveragedPeriod, but
+  // rather than an instance method, it is static so that it can
+  // be used on processing results as well
+  static extractDataset (flatData, spectrumLength, index) {
+    const offset = index * spectrumLength
+
+    return new Float64Array(
+      flatData.buffer,
+      flatData.byteOffset + (offset * Float64Array.BYTES_PER_ELEMENT),
+      spectrumLength
+    )
+  }
+
   constructor (spectraPerCycle, spectrumLength, cyclePeriodSeconds) {
     this.spectraPerCycle = spectraPerCycle
     this.spectrumLength = spectrumLength

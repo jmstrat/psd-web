@@ -9,7 +9,7 @@ import {
 
 onmessage = async ({ data }) => {
   switch (data.type) {
-    case Messages.PROCESS: {
+    case Messages.IMPORT_AND_RUN_PSD: {
       try {
         await SharedFileReader.loadData(
           data.files,
@@ -32,7 +32,7 @@ onmessage = async ({ data }) => {
           stage: "finished"
         })
         postMessage({
-          type: Messages.RESULT,
+          type: Messages.PSD_RESULT,
           ...result
         }, transferList)
       } catch (err) {
@@ -42,6 +42,42 @@ onmessage = async ({ data }) => {
           message: err?.message ?? err
         })
       }
+      break
+    }
+    case Messages.GET_AVERAGED_PERIOD: {
+      postMessage({
+        type: Messages.PROGRESS,
+        stage: "calculate"
+      })
+      const datasetCount = SharedFileReader.datasetCount
+      const datasets = []
+      const timeValues = SharedFileReader.timeAxis
+
+      // Note: We need to clone x as otherwise if we use cached data
+      // it will be invalid once it has transferred
+      const xBufferToTransfer = SharedFileReader.xAxis.slice().buffer
+      const transferList = [xBufferToTransfer]
+
+      for (let i = 0; i < datasetCount; i++) {
+        const y = SharedFileReader.getDataset(i).slice()
+        transferList.push(y.buffer)
+        datasets.push({
+          label: `${timeValues[i]} s`,
+          data: y
+        })
+      }
+      const dataType = SharedFileReader.dataType
+
+      postMessage({
+        type: Messages.AVERAGED_PERIOD_RESULT,
+        xAxisData: new Float64Array(xBufferToTransfer),
+        datasets,
+        dataType
+      }, transferList)
+      postMessage({
+        type: Messages.PROGRESS,
+        stage: "finished"
+      })
       break
     }
     case Messages.GET_PHASE_PROFILE: {

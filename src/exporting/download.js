@@ -17,14 +17,20 @@ function getArchiveMetadataStream (parameters) {
   })
 }
 
-function getPSDStream (psdData) {
-  const xlab = psdData.dataType?.xlab ?? "x_value"
-  const psdHeaders = [xlab, ...psdData.datasets.map(d => d.label)]
-  const psdYArrays = psdData.datasets.map(d => d.data)
-  return createCSVStream(psdHeaders, psdData.xAxisData, psdYArrays)
+function getMultiColumnStream (data) {
+  const xlab = data.dataType?.xlab ?? "x_value"
+  const headings = [xlab, ...data.datasets.map(d => d.label)]
+  const yValueArrays = data.datasets.map(d => d.data)
+  return createCSVStream(headings, data.xAxisData, yValueArrays)
 }
 
-function getArchiveFileStreams ({ psdData, profileData, singlePhaseData, parameters }) {
+function getArchiveFileStreams ({
+  averagePeriod,
+  psdData,
+  profileData,
+  singlePhaseData,
+  parameters
+}) {
   if (!psdData) {
     alert("No processed datasets found to export.")
     return
@@ -34,7 +40,8 @@ function getArchiveFileStreams ({ psdData, profileData, singlePhaseData, paramet
 
   const filesToArchive = [
     { name: "meta.txt", stream: metaStream },
-    { name: "psd.csv", stream: getPSDStream(psdData) }
+    { name: "averaged_period.csv", stream: getMultiColumnStream(averagePeriod) },
+    { name: "psd.csv", stream: getMultiColumnStream(psdData) }
   ]
 
   if (profileData) {

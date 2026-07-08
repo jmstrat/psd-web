@@ -189,6 +189,27 @@ class CachedFileReader {
     }
     return this.cachedData
   }
+
+  get xAxis () {
+    return this.getData().x
+  }
+
+  get timeAxis () {
+    return this.getData().timeValues
+  }
+
+  get datasetCount () {
+    return this.getData().spectraPerCycle
+  }
+
+  get dataType () {
+    return this.getData().dataType
+  }
+
+  getDataset (index) {
+    const { averagedPeriod, spectrumLength } = this.getData()
+    return CycleMerger.extractDataset(averagedPeriod, spectrumLength, index)
+  }
 }
 
 export const SharedFileReader = new CachedFileReader()
