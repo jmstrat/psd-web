@@ -1,6 +1,6 @@
 export const box = Object.freeze({
   id: 'box',
-  afterDatasetsDraw(chart) {
+  beforeDatasetsDraw (chart) {
     const { ctx, chartArea: { left, top, right, bottom } } = chart
     ctx.save()
     ctx.strokeStyle = '#000'
@@ -16,7 +16,7 @@ export const box = Object.freeze({
 
 export const verticalHoverLine = Object.freeze({
   id: 'verticalHoverLine',
-  afterDatasetsDraw(chart) {
+  afterDatasetsDraw (chart) {
     if (chart.tooltip?._active?.length) {
       const { ctx, chartArea: { top, bottom } } = chart
       const activePoint = chart.tooltip._active[0]

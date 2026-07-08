@@ -59,7 +59,8 @@ export function renderPhaseProfile ({ intensities, phaseAngles, selectedX }, onc
     pointHoverRadius: pointHoverRadii,
     pointBackgroundColor: pointBgColours,
     pointBorderColor: pointBorderColours,
-    pointBorderWidth: 1.5
+    pointBorderWidth: 1.5,
+    clip: false
   }
 
   const titleText = `r = ${selectedX} Å`
