@@ -12,9 +12,12 @@ import {
 } from "chart.js"
 import zoomPlugin from 'chartjs-plugin-zoom'
 
-import { box, verticalHoverLine } from './util.js'
-
-import { onSingleClick, deepMerge } from "@/util.js"
+import {
+  box,
+  verticalHoverLine,
+  onSingleClick,
+  deepMerge
+} from './util.js'
 
 Chart.register(LineController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Legend, Decimation, zoomPlugin)
 

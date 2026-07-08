@@ -1,4 +1,4 @@
-import { ExpandableBuffer } from "@/util.js"
+import { ExpandableBuffer } from "./util.js"
 
 // We use a class based system to parse data files so that it is easy to extend support
 // to additional file types. All parses must extend from BaseParser. They should at
