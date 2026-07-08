@@ -224,8 +224,8 @@
 
   <div id="helpModal" role="dialog" aria-modal="true"
   class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/40 backdrop-blur-sm">
-    <div class="mx-4 w-full max-w-2xl rounded-2xl bg-white p-8 shadow-2xl">
-      <div class="mb-6 flex items-center justify-between">
+    <div class="w-full max-w-2xl max-h-[85vh] flex flex-col rounded-2xl bg-white p-8 shadow-2xl">
+      <div class="mb-6 flex items-center justify-between shrink-0">
         <h2 class="text-2xl font-semibold">
           Help
         </h2>
@@ -233,13 +233,36 @@
           ✕
         </button>
       </div>
-      <div class="space-y-6 text-sm leading-7 text-slate-600">
-        <p>
-          This is an early stage proof-of-concept. It has not been
-          extensively tested so any output must be carefully checked.
-          In its initial state it has limited filetype support, however,
-          the calculation is general, not specific to any one technique.
+      <div class="overflow-y-auto pr-2 space-y-6 text-sm leading-7 text-slate-600 scrollbar-simple">
+        <p class="border-l-4 border-amber-500 bg-amber-50/50 p-3 rounded-r-lg text-slate-700">
+          <strong>Proof of concept:</strong> This tool is an early-stage prototype and has not been extensively tested. Please verify all outputs carefully. Whilst file type support is currently limited, the underlying calculation is universal and not technique-specific.
         </p>
+        <div>
+          <p>
+            Once your data are loaded and analysed, the main PSD chart will display
+            the phase-resolved data.
+          </p>
+          <ul class="list-disc space-y-2 pl-5 mt-2">
+            <li>
+              <strong>Zoom:</strong> Click and drag horizontally on the x-axis
+              (double-click to reset).
+            </li>
+            <li>
+              <strong>View Profiles:</strong> Click any point to render its phase
+              profile, which shows intensity as a function of the phase angle.
+            </li>
+            <li>
+              <strong>Select Angles:</strong> The point of maximum intensity renders
+              as a single phase by default. To select a different angle manually,
+              click anywhere on the phase profile.
+            </li>
+            <li>
+              <strong>Export:</strong> When you are happy with the results,
+              click the "Download Results" button to save your data.
+            </li>
+          </ul>
+        </div>
+
         <div>
           <h3 class="mb-2 font-semibold text-slate-900">
             Requirements
@@ -263,8 +286,10 @@
           <h3 class="mb-2 font-semibold text-slate-900">
             Supported Files
           </h3>
-          <p>.gr (PDFGetX3)</p>
-          <p>.xy (2 column)</p>
+          <ul class="list-disc space-y-1 pl-5">
+            <li><code class="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">.gr</code> (PDFGetX3)</li>
+            <li><code class="rounded bg-slate-100 px-1 py-0.5 font-mono text-xs">.xy</code> (2-column data)</li>
+          </ul>
         </div>
       </div>
     </div>
