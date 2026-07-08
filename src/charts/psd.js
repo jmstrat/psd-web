@@ -1,6 +1,7 @@
 import { getColour, palettes } from "./colourmap.js"
 import { createBaseChart } from "./base-chart.js"
 import { destroyChart } from './util.js'
+import { gradientLegend } from './gradient-legend.js'
 
 const PSDChartCtx = document.getElementById("chartPSD").getContext("2d")
 let PSDChart = null
@@ -34,7 +35,7 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
             }
           },
           plugins: {
-            continuousLegend: {
+            gradientLegend: {
               cyclic: true,
               cyclicMax: '360°'
             },
@@ -100,53 +101,7 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
             }
           }
         },
-        plugins: [
-          {
-            id: 'continuousLegend',
-            afterInit(chart, args, options) {
-              const dataArray = chart.data.datasets
-              if (!dataArray || dataArray.length === 0) {
-                return
-              }
-
-              const allColours = dataArray.map(d => d.borderColor || d.backgroundColor)
-              const labels = dataArray.map(d => d.label)
-
-              if (options.cyclic && allColours.length > 0) {
-                allColours.push(allColours[0])
-                labels.push(options.cyclicMax)
-              }
-
-              const len = labels.length
-              const textLabels = [
-                labels[0],
-                labels[Math.floor((len - 1) / 2)],
-                labels[len - 1]
-              ]
-
-              const wrapper = document.createElement('div')
-              const labelsOverlay = document.createElement('div')
-              const colourBar = document.createElement('div')
-
-              wrapper.className = 'legend'
-              labelsOverlay.className = 'legend-labels-overlay'
-              colourBar.className = 'legend-colour-bar'
-
-              colourBar.style.background = `linear-gradient(to bottom, ${allColours.join(', ')})`
-
-              textLabels.forEach(text => {
-                const span = document.createElement('span')
-                span.className = 'legend-label-pill'
-                span.textContent = text
-                labelsOverlay.appendChild(span)
-              })
-
-              wrapper.appendChild(labelsOverlay)
-              wrapper.appendChild(colourBar)
-              chart.canvas.parentNode.appendChild(wrapper)
-            }
-          }
-        ]
+        plugins: [ gradientLegend ]
       },
       onclick
     )
