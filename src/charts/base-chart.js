@@ -57,6 +57,8 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
       scales: {
         x: {
           type: 'linear',
+          bounds: 'data',
+          grace: 0,
           grid: {
             display: true,
             drawOnChartArea: false,
@@ -65,19 +67,57 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
             tickLength: 6
           },
           border: { display: true, color: '#000', width: 1 },
-          ticks: { display: true },
-          afterTickToLabelConversion(scaleInstance) {
+          ticks: { display: true, includeBounds: false },
+          afterTickToLabelConversion (scaleInstance) {
             const ticks = scaleInstance.ticks
-            if (!ticks || ticks.length < 2) {
+
+            if (!ticks || ticks.length < 3) {
               return
             }
+
+            const standardStep = ticks[1].value - ticks[0].value
+
+            /* WORKAROUND for https://github.com/chartjs/Chart.js/issues/10066 */
+            const lastStep = ticks[ticks.length - 1].value - ticks[ticks.length - 2].value
+            if (Math.abs(lastStep - standardStep) > 0.0001) {
+              ticks.pop()
+            }
+            /* END WORKAROUND */
+
+            /* WORKAROUND for chart.js rendering ticks that extend out of the chart area */
+            if (ticks.length > 0) {
+              const lastTick = ticks[ticks.length - 1]
+              if (lastTick.value > scaleInstance.max) {
+                ticks.pop()
+              }
+            }
+            /* END WORKAROUND */
+
             const newTicks = []
+
+            if (ticks.length > 0) {
+              const firstMajorTick = ticks[0]
+              const leadingMidValue = firstMajorTick.value - (standardStep / 2)
+              if (leadingMidValue >= scaleInstance.min) {
+                newTicks.push({ value: leadingMidValue, label: "" })
+              }
+            }
+
             for (let i = 0; i < ticks.length - 1; i++) {
               newTicks.push(ticks[i])
               const midValue = (ticks[i].value + ticks[i + 1].value) / 2
               newTicks.push({ value: midValue, label: "" })
             }
-            newTicks.push(ticks[ticks.length - 1])
+
+            if (ticks.length > 0) {
+              const lastMajorTick = ticks[ticks.length - 1]
+              newTicks.push(lastMajorTick)
+              const trailingMidValue = lastMajorTick.value + (standardStep / 2)
+              if (trailingMidValue <= scaleInstance.max) {
+                newTicks.push({ value: trailingMidValue, label: "" })
+              }
+            }
+
             scaleInstance.ticks = newTicks
           }
         },
