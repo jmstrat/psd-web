@@ -1,5 +1,5 @@
 import './styles.css'
-import { Messages } from "./messages.js"
+import { Messages, ProgressStage } from "./messages.js"
 import {
   destroyPSD, renderPSD,
   destroyPhaseProfile, renderPhaseProfile,
@@ -13,21 +13,17 @@ import workerModule from './worker.js?worker'
 // The main thread just handles the UI (and plotting)
 const worker = new workerModule()
 
-const status = document.getElementById("status")
-const progressContainer = document.getElementById('progressContainer')
-const progressBar = document.getElementById('progressBar')
-const progressText = document.getElementById('progressText')
-
 const downloadButton = document.getElementById('downloadButton')
 const runButton = document.getElementById("runButton")
-const fileInput = document.getElementById("fileUpload")
-const fileStatus = document.getElementById("uploadStatus")
-const chooseButton = document.getElementById("chooseFile")
-const metadataContainer = document.getElementById("metadataContainer")
-
 const helpButton = document.getElementById("helpButton")
 const closeHelp = document.getElementById("closeHelp")
 const helpModal = document.getElementById("helpModal")
+
+const fileInput = document.getElementById("fileUpload")
+const fileStatus = document.getElementById("uploadStatus")
+const chooseButton = document.getElementById("chooseFile")
+
+const metadataContainer = document.getElementById("metadataContainer")
 
 const parametersForm = document.getElementById("parameters")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
@@ -45,29 +41,126 @@ let currentParameters = {}
 
 let isWorkerReady = false
 
+class StatusMessage {
+  #element
+  #span
+  #type
+  #typeStyles = {
+    info: { bg: 'bg-blue-100', text: 'text-blue-700' },
+    success: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
+    error: { bg: 'bg-rose-100', text: 'text-rose-700' }
+  }
+
+  constructor (element) {
+    this.#element = element
+    this.#span = element.querySelector('#status') || element.querySelector('span')
+    this.message = "Loading..."
+    this.type = 'info'
+  }
+
+  set message (text) {
+    if (this.#span) {
+      this.#span.textContent = text
+    }
+  }
+
+  get type () {
+    return this.#type
+  }
+
+  set type (type) {
+    this.#type = type
+    const config = this.#typeStyles[type] || this.#typeStyles.info
+
+    Object.values(this.#typeStyles).forEach(style => {
+      this.#element.classList.remove(style.bg, style.text)
+    })
+
+    this.#element.classList.add(config.bg, config.text)
+  }
+}
+
+class ProgressBar {
+  #container
+  #bar
+  #message
+
+  constructor (containerElement) {
+    this.#container = containerElement
+    this.#bar = containerElement.querySelector('#progressBar')
+    this.#message = containerElement.querySelector('#progressText')
+
+    this.message = "Processing..."
+    this.progress = null
+  }
+
+  show () {
+    this.#container.classList.remove('opacity-0')
+    this.#container.classList.add('opacity-100')
+  }
+
+  hide () {
+    this.#container.classList.remove('opacity-100')
+    this.#container.classList.add('opacity-0')
+  }
+
+  set message (text) {
+    if (this.#message) {
+      this.#message.textContent = text
+    }
+  }
+
+  set progress (value) {
+    if (value === null || value === undefined) {
+      this.#bar.removeAttribute('value')
+    } else {
+      this.#bar.value = value
+    }
+  }
+
+  set min (value) {
+    this.#bar.min = value
+  }
+
+  set max (value) {
+    this.#bar.max = value
+  }
+}
+
+const status = new StatusMessage(document.getElementById("statusBadge"))
+const progress = new ProgressBar(document.getElementById('progressContainer'))
+
 function updateReadyState () {
   const hasFiles = fileInput.files && fileInput.files.length > 0
 
   if (!isWorkerReady) {
     runButton.disabled = true
-    status.textContent = "Loading..."
+    status.message = "Loading..."
+    status.type = 'info'
     return
   }
 
   if (!hasFiles) {
     runButton.disabled = true
-    status.textContent = "Please select files to begin"
+    status.message = "Please select files to begin"
+    status.type = 'info'
+
     fileStatus.textContent = "No files selected"
 
-    progressText.textContent = ""
-    progressContainer.classList.add("opacity-0")
-    progressContainer.classList.remove("opacity-100")
+    progress.hide()
     return
   }
 
-  runButton.disabled = false
-  status.textContent = "Ready"
   fileStatus.textContent = `${fileInput.files.length} files ready to process`
+
+  if (runButton.disabled) {
+    status.message = "Please update the analysis settings"
+    status.type = 'info'
+    return
+  }
+
+  status.message = "Ready"
+  status.type = "success"
 }
 
 function validateForm () {
@@ -90,6 +183,10 @@ function validateForm () {
                         !hasFiles
 
   runButton.disabled = shouldDisable
+
+  if (status.type !== 'error') {
+    updateReadyState()
+  }
 }
 
 function renderMetadata (metadata) {
@@ -130,7 +227,6 @@ function renderMetadata (metadata) {
 
 chooseButton.addEventListener("click", () => fileInput.click())
 fileInput.addEventListener("change", () => {
-  updateReadyState()
   validateForm()
 })
 
@@ -145,22 +241,22 @@ worker.onmessage = ({ data }) => {
       updateReadyState()
       break
     case Messages.PROGRESS:
-      progressContainer.classList.remove("opacity-0")
-      progressContainer.classList.add("opacity-100")
+      progress.show()
 
-      if (data.stage === 'read') {
-        status.textContent = "Reading files..."
-        progressBar.max = data.total || 100
-        progressBar.value = data.current || 0
-        progressText.textContent = `Reading ${data.current} of ${data.total}`
-      } else if (data.stage === 'calculate') {
-        status.textContent = "Processing..."
-        progressBar.removeAttribute('value')
-      } else if (data.stage === 'finished') {
-        status.textContent = "Finished"
-        progressContainer.classList.add("opacity-0")
-        progressContainer.classList.remove("opacity-100")
-        progressText.textContent = ""
+      if (data.stage === ProgressStage.READING) {
+        status.message = "Reading files..."
+        status.type = 'info'
+        progress.max = data.total
+        progress.progress = data.current
+        progress.message = `Reading ${data.current} of ${data.total}`
+      } else if (data.stage === ProgressStage.CALCULATING) {
+        status.message = "Processing..."
+        status.type = 'info'
+        progress.progress = null
+      } else if (data.stage === ProgressStage.FINISHED) {
+        status.message = "Finished"
+        status.type = 'success'
+        progress.hide()
         downloadButton.disabled = false
       }
       break
@@ -224,10 +320,9 @@ worker.onmessage = ({ data }) => {
         canvases: images
       })
     case Messages.ERROR:
-      status.textContent = `Error: ${data.message}`
-      progressContainer.classList.add("opacity-0")
-      progressContainer.classList.remove("opacity-100")
-      progressText.textContent = ""
+      status.message = `Error: ${data.message}`
+      status.type = 'error'
+      progress.hide()
       validateForm()
       break
   }
@@ -237,7 +332,8 @@ parametersForm.addEventListener('input', validateForm)
 
 parametersForm.addEventListener('submit', (event) => {
   event.preventDefault()
-  status.textContent = "Processing..."
+  status.message = "Processing..."
+  status.type = 'info'
   runButton.disabled = true
 
   currentParameters = {
@@ -259,7 +355,8 @@ parametersForm.addEventListener('submit', (event) => {
 })
 
 function onPSDChartClick (x, idx) {
-  status.textContent = "Processing..."
+  status.message = "Processing..."
+  status.type = 'info'
   runButton.disabled = true
   worker.postMessage({
     type: Messages.GET_PHASE_PROFILE,
@@ -271,8 +368,8 @@ function onPSDChartClick (x, idx) {
 }
 
 function onPhaseProfileClick (x, idx) {
-  status.textContent = "Processing..."
-  runButton.disabled = true
+  status.message = "Processing..."
+  status.type = 'info'
   worker.postMessage({
     type: Messages.GET_SINGLE_PHASE,
     waveType: currentParameters.waveType,

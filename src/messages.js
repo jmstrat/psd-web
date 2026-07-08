@@ -15,3 +15,9 @@ export const Messages = Object.freeze({
   ERROR: "error",
   CANCEL: "cancel"
 })
+
+export const ProgressStage = Object.freeze({
+  READING: 'read',
+  CALCULATING: 'calculate',
+  FINISHED: 'finished'
+})

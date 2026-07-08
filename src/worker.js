@@ -1,4 +1,4 @@
-import { Messages } from "./messages.js"
+import { Messages, ProgressStage } from "./messages.js"
 import { SharedFileReader } from "./importing/filereader.js"
 import {
   allocateRunner,
@@ -17,24 +17,25 @@ onmessage = async ({ data }) => {
             ...data,
             progressCallback: (p) => postMessage({
               type: Messages.PROGRESS,
-              stage: 'read',
+              stage: ProgressStage.READING,
               ...p
             })
           }
         )
         postMessage({
           type: Messages.PROGRESS,
-          stage: "calculate"
+          stage: ProgressStage.CALCULATING
         })
         const { transferList, ...result } = runPSD(data)
-        postMessage({
-          type: Messages.PROGRESS,
-          stage: "finished"
-        })
         postMessage({
           type: Messages.PSD_RESULT,
           ...result
         }, transferList)
+
+        postMessage({
+          type: Messages.PROGRESS,
+          stage: ProgressStage.FINISHED
+        })
       } catch (err) {
         console.error(err)
         postMessage({
@@ -47,8 +48,9 @@ onmessage = async ({ data }) => {
     case Messages.GET_AVERAGED_PERIOD: {
       postMessage({
         type: Messages.PROGRESS,
-        stage: "calculate"
+        stage: ProgressStage.CALCULATING
       })
+
       const datasetCount = SharedFileReader.datasetCount
       const datasets = []
       const timeValues = SharedFileReader.timeAxis
@@ -74,9 +76,10 @@ onmessage = async ({ data }) => {
         datasets,
         dataType
       }, transferList)
+
       postMessage({
         type: Messages.PROGRESS,
-        stage: "finished"
+        stage: ProgressStage.FINISHED
       })
       break
     }
@@ -84,8 +87,9 @@ onmessage = async ({ data }) => {
       try {
         postMessage({
           type: Messages.PROGRESS,
-          stage: "calculate"
+          stage: ProgressStage.CALCULATING
         })
+
         const sharedRunner = allocateRunner()
         const { transferList, maxPhase, ...result } = getProfile(data, sharedRunner)
         postMessage({
@@ -110,7 +114,7 @@ onmessage = async ({ data }) => {
 
         postMessage({
           type: Messages.PROGRESS,
-          stage: "finished"
+          stage: ProgressStage.FINISHED
         })
       } catch (err) {
         console.error(err)
@@ -125,8 +129,9 @@ onmessage = async ({ data }) => {
       try {
         postMessage({
           type: Messages.PROGRESS,
-          stage: "calculate"
+          stage: ProgressStage.CALCULATING
         })
+
         const { transferList, ...result } = getSinglePhase(data)
         postMessage({
           type: Messages.SINGLE_PHASE_RESULT,
@@ -135,7 +140,7 @@ onmessage = async ({ data }) => {
         }, transferList)
         postMessage({
           type: Messages.PROGRESS,
-          stage: "finished"
+          stage: ProgressStage.FINISHED
         })
       } catch (err) {
         console.error(err)
