@@ -37,6 +37,13 @@ async function readSpectraFiles (files, options = {}) {
     throw new Error("acquisitionIntervalSeconds must be smaller than cyclePeriodSeconds")
   }
 
+  if (
+    typeof xMin !== 'number' || typeof xMax !== 'number' ||
+    Number.isNaN(xMin) || Number.isNaN(xMax) || xMin >= xMax
+  ) {
+    throw new Error("xMin must be less than xMax")
+  }
+
   const spectraPerCycle = Math.round(cyclePeriodSeconds / acquisitionIntervalSeconds)
   const usableLength = Math.floor(files.length / spectraPerCycle) * spectraPerCycle
 
@@ -135,7 +142,7 @@ async function readSpectraFiles (files, options = {}) {
   }
 }
 
-function makeSignature(x) {
+function makeSignature (x) {
   return {
     length: x.length,
     first: x[0],
@@ -144,7 +151,7 @@ function makeSignature(x) {
   }
 }
 
-function compareSignature(a, b) {
+function compareSignature (a, b) {
   const EPSILON = 1e-9
   return (
     a.length === b.length &&

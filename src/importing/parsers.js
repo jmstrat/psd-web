@@ -248,7 +248,7 @@ export class ParserFactory {
     const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase()
     const ParserClass = this.#registry.get(ext)
     if (!ParserClass) {
-      throw new Error(`Unsupported file extension: ${ext}`);
+      throw new Error(`Unsupported file extension: ${ext}`)
     }
     return new ParserClass()
   }

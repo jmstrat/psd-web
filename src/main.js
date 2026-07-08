@@ -35,6 +35,7 @@ const acquisitionIntervalInput = document.getElementById("acquisitionInterval")
 const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
 const resolutionInput = document.getElementById("resolution")
+const xMinInput = document.getElementById("xMin")
 const xMaxInput = document.getElementById("xMax")
 
 let currentPsdData = null
@@ -232,6 +233,7 @@ parametersForm.addEventListener('submit', (event) => {
     resolution: resolutionInput.valueAsNumber,
     waveType: waveTypeInput.value,
     harmonic: harmonicInput.valueAsNumber,
+    xMin: Number.isNaN(xMinInput.valueAsNumber) ? -Infinity : xMinInput.valueAsNumber,
     xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
   }
 

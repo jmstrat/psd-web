@@ -147,10 +147,18 @@
                 </div>
               </div>
 
-              <div>
-                <label for="xMax" class="form-label">x Axis Max</label>
-                <input id="xMax" placeholder="Unlimited" type="number" class="form-input">
+              <div class="grid grid-cols-[1fr_1fr] gap-3">
+                <div>
+                  <label for="xMin" class="form-label">x Axis Min</label>
+                  <input id="xMin" placeholder="Unlimited" type="number" class="form-input">
+                </div>
+
+                <div>
+                  <label for="xMax" class="form-label">x Axis Max</label>
+                  <input id="xMax" placeholder="Unlimited" type="number" class="form-input">
+                </div>
               </div>
+
             </div>
             <button id="runButton" disabled type="submit"
             class="mt-6 h-10 w-full btn-primary">
