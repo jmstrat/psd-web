@@ -7,7 +7,6 @@ import {
   Title,
   SubTitle,
   Tooltip,
-  Legend,
   Decimation
 } from "chart.js"
 import zoomPlugin from 'chartjs-plugin-zoom'
@@ -19,7 +18,7 @@ import {
   deepMerge
 } from './util.js'
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Legend, Decimation, zoomPlugin)
+Chart.register(LineController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Decimation, zoomPlugin)
 
 export function createBaseChart (ctx, userConfig = {}, onclick) {
   // We abort this on destroy to remove listeners
@@ -47,7 +46,6 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
         }
       },
       plugins: {
-        legend: { display: false },
         zoom: {
           zoom: {
             drag: { enabled: true },
