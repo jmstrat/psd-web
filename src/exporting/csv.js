@@ -1,4 +1,4 @@
-export function createCSVStream (headers, xAxisData, yAxisDataArrays, chunkSize = 2000) {
+export function createCSVStream (headers, xAxisData, yAxisDataArrays, separator=',', chunkSize = 2000) {
   let rowIndex = 0
   const rowCount = xAxisData.length
   const datasetCount = yAxisDataArrays.length
@@ -6,7 +6,7 @@ export function createCSVStream (headers, xAxisData, yAxisDataArrays, chunkSize 
 
   return new ReadableStream({
     start (controller) {
-      controller.enqueue(encoder.encode(headers.join(",") + "\n"))
+      controller.enqueue(encoder.encode(headers.join(separator) + "\n"))
     },
 
     async pull (controller) {
@@ -16,7 +16,7 @@ export function createCSVStream (headers, xAxisData, yAxisDataArrays, chunkSize 
       for (; rowIndex < limit; rowIndex++) {
         let row = `${xAxisData[rowIndex]}`
         for (let j = 0; j < datasetCount; j++) {
-          row += `,${yAxisDataArrays[j][rowIndex]}`
+          row += `${separator}${yAxisDataArrays[j][rowIndex]}`
         }
         chunkString += row + "\n"
       }

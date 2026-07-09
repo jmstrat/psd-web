@@ -312,14 +312,20 @@ worker.onmessage = ({ data }) => {
         images['selected_phase'] = document.getElementById('chartSinglePhase')
       }
 
-      downloadAnalysisArchive({
-        averagePeriod: data,
-        psdData: currentPsdData,
-        profileData: currentProfileData,
-        singlePhaseData: currentSinglePhaseData,
-        parameters: currentParameters,
-        canvases: images
-      })
+      downloadAnalysisArchive(
+        {
+          averagePeriod: data,
+          psdData: currentPsdData,
+          profileData: currentProfileData,
+          singlePhaseData: currentSinglePhaseData,
+          parameters: currentParameters,
+          canvases: images,
+        },
+        {
+          multicolumn: document.getElementById('export-multi-datasets').value,
+          separator: document.getElementById('export-column-separator').value
+        }
+      )
     case Messages.ERROR:
       status.message = `Error: ${data.message}`
       status.type = 'error'

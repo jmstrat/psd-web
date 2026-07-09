@@ -1,6 +1,11 @@
 import { createCSVStream } from "./csv.js"
 import { Zip, ZipPassThrough } from 'fflate'
 
+const defaultOptions = {
+  multicolumn: 'combined',
+  separator: ','
+}
+
 function getArchiveMetadataStream (parameters) {
   const encoder = new TextEncoder()
 
@@ -17,11 +22,22 @@ function getArchiveMetadataStream (parameters) {
   })
 }
 
-function getMultiColumnStream (data) {
+function getMultiColumnStream (data, separator) {
   const xlab = data.dataType?.xlab ?? "x_value"
   const headings = [xlab, ...data.datasets.map(d => d.label)]
   const yValueArrays = data.datasets.map(d => d.data)
-  return createCSVStream(headings, data.xAxisData, yValueArrays)
+  return createCSVStream(headings, data.xAxisData, yValueArrays, separator)
+}
+
+function getMultiColumnSplitStreams (data, separator) {
+  const xlab = data.dataType?.xlab ?? "x_value"
+  const ylab = data.dataType?.ylab ?? "y_value"
+  const headings = [xlab, ylab]
+  const streams = {}
+  for (const d of data.datasets) {
+    streams[d.label] = createCSVStream(headings, data.xAxisData, [d.data], separator)
+  }
+  return streams
 }
 
 function getCanvasWithBackground (sourceCanvas, colour) {
@@ -67,34 +83,66 @@ function getCanvasStream (canvas, type='image/png', background='#fff') {
 }
 
 
-function getArchiveFileStreams ({
-  averagePeriod,
-  psdData,
-  profileData,
-  singlePhaseData,
-  parameters,
-  canvases
-}) {
+function getArchiveFileStreams (
+  {
+    averagePeriod,
+    psdData,
+    profileData,
+    singlePhaseData,
+    parameters,
+    canvases
+  },
+  options
+) {
   if (!psdData) {
     alert("No processed datasets found to export.")
     return
   }
 
+  console.log(options)
+
+  options = {
+    ...defaultOptions,
+    ...options
+  }
+
+  const ext = options.separator === ',' ? 'csv' : 'dat'
+
   const metaStream = getArchiveMetadataStream(parameters)
 
   const filesToArchive = [
-    { name: "meta.txt", stream: metaStream },
-    { name: "averaged_period.csv", stream: getMultiColumnStream(averagePeriod) },
-    { name: "psd.csv", stream: getMultiColumnStream(psdData) }
+    { name: "meta.txt", stream: metaStream }
   ]
+
+  if (options.multicolumn === 'combined') {
+    filesToArchive.push(
+      { name: `averaged_period.${ext}`, stream: getMultiColumnStream(averagePeriod, options.separator) },
+      { name: `psd.${ext}`, stream: getMultiColumnStream(psdData, options.separator) }
+    )
+  } else {
+    const avgPeriodStreams = getMultiColumnSplitStreams(averagePeriod, options.separator)
+    for (const [name, stream] of Object.entries(avgPeriodStreams)) {
+      filesToArchive.push(
+        { name: `averaged_period/${name}.${ext}`, stream }
+      )
+    }
+
+    const psdStreams = getMultiColumnSplitStreams(psdData, options.separator)
+    for (const [name, stream] of Object.entries(psdStreams)) {
+      filesToArchive.push(
+        { name: `psd/${name}.${ext}`, stream }
+      )
+    }
+  }
 
   if (profileData) {
     filesToArchive.push({
-      name: "phase_profile.csv",
+      name: `phase_profile.${ext}`,
       stream: createCSVStream(
         ["Theta", "intensity"],
         profileData.phaseAngles,
-        [profileData.intensities]
+        [profileData.intensities],
+        options.separator
       )
     })
   }
@@ -103,11 +151,12 @@ function getArchiveFileStreams ({
     const xlab = singlePhaseData.dataType?.xlab ?? "x_value"
     const ylab = singlePhaseData.dataType?.ylab ?? "intensity"
     filesToArchive.push({
-      name: "selected_phase.csv",
+      name: `selected_phase.${ext}`,
       stream: createCSVStream(
         [xlab, ylab],
         singlePhaseData.xAxisData,
-        [singlePhaseData.yAxisData]
+        [singlePhaseData.yAxisData],
+        options.separator
       )
     })
   }
@@ -135,8 +184,8 @@ async function pipeStreamToZipFile (fileStream, zipStream) {
   zipStream.push(new Uint8Array(0), true)
 }
 
-export async function downloadAnalysisArchive (data) {
-  const filesToArchive = getArchiveFileStreams(data)
+export async function downloadAnalysisArchive (data, options) {
+  const filesToArchive = getArchiveFileStreams(data, options)
   if (!filesToArchive) {
     return
   }

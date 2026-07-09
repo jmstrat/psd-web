@@ -61,14 +61,6 @@
          disabled:bg-slate-300;
 }
 
-.btn-secondary {
-  @apply rounded-lg border border-slate-300 bg-white
-         text-sm font-medium transition
-         hover:bg-slate-100
-         disabled:cursor-not-allowed
-         disabled:opacity-40;
-}
-
 progress {
   --bar: #2d6cdf;
   --background: #d9dee8;
