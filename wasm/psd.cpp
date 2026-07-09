@@ -115,6 +115,22 @@ inline double generateReferenceSample(WaveType waveType, double theta) {
 
 extern "C" {
 
+// ---------------------------------------------------------------------------
+// PHASE-SENSITIVE DETECTION CALCULATION
+// ---------------------------------------------------------------------------
+// We loop through different phase shifts to find exactly when the pattern changes.
+// First we compute and subtract the temporal mean (DC baseline) to avoid false
+// correlations from unmodulated background signals.
+// Then we multiply the signal by a reference waveform and integrate over one period
+// (a single-frequency Fourier projection in the case of a sine wave), which
+// preferentially extracts components oscillating at the selected modulation frequency.
+//
+// Signal components that are phase-coherent with the reference accumulate
+// constructively, while components at other frequencies are
+// progressively attenuated over the integration interval.
+// Static backgrounds are removed by the DC subtraction, while
+// uncorrelated noise and out-of-phase components are reduced.
+
 void runPSD(
   const double* averagedPeriod,
   const double* timeValues,
@@ -131,26 +147,8 @@ void runPSD(
   // Clear the target memory space
   std::fill_n(output, params.phaseCount * spectrumLength, 0.0);
 
-  // ---------------------------------------------------------------------------
-  // DC OFFSET SUBTRACTION (BASELINE NORMALISATION)
-  // ---------------------------------------------------------------------------
-  // To avoid false correlations from unmodulated background signals, we compute
-  // and subtract the temporal mean (DC baseline)
   const auto means = calculateMeans(averagedPeriod, spectraPerPeriod, spectrumLength);
 
-  // ---------------------------------------------------------------------------
-  // MAIN PHASE-SENSITIVE DETECTION CALCULATION
-  // ---------------------------------------------------------------------------
-  // We loop through different phase shifts to find exactly when the pattern changes.
-  // Multiplying the signal by a reference waveform and integrating over one period
-  // implements a single-frequency Fourier projection, preferentially extracting
-  // components oscillating at the selected modulation frequency.
-  //
-  // Signal components that are phase-coherent with the reference accumulate
-  // constructively, while components at other frequencies are
-  // progressively attenuated over the integration interval.
-  // Static backgrounds are removed by the DC subtraction, while
-  // uncorrelated noise and out-of-phase components are reduced.
   for (int phaseIndex = 0; phaseIndex < params.phaseCount; phaseIndex++) {
     // (radians)
     const double phaseShift = phaseIndex * phaseResolutionDegrees * M_PI / 180.0;
@@ -162,9 +160,6 @@ void runPSD(
 
       const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
-      // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
-      // component of amplitude 'A', the resulting peak value in the output array
-      // matches 'A' exactly.
       const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
       // Remove the DC baseline and multiply by the reference signal
@@ -193,26 +188,7 @@ void runPSDForSinglePhase(
   // Clear the target memory space
   std::fill_n(output, spectrumLength, 0.0);
 
-  // ---------------------------------------------------------------------------
-  // DC OFFSET SUBTRACTION (BASELINE NORMALISATION)
-  // ---------------------------------------------------------------------------
-  // To avoid false correlations from unmodulated background signals, we compute
-  // and subtract the temporal mean (DC baseline)
   const auto means = calculateMeans(averagedPeriod, spectraPerPeriod, spectrumLength);
-
-  // ---------------------------------------------------------------------------
-  // MAIN PHASE-SENSITIVE DETECTION CALCULATION
-  // ---------------------------------------------------------------------------
-  // We loop through different phase shifts to find exactly when the pattern changes.
-  // Multiplying the signal by a reference waveform and integrating over one period
-  // implements a single-frequency Fourier projection, preferentially extracting
-  // components oscillating at the selected modulation frequency.
-  //
-  // Signal components that are phase-coherent with the reference accumulate
-  // constructively, while components at other frequencies are
-  // progressively attenuated over the integration interval.
-  // Static backgrounds are removed by the DC subtraction, while
-  // uncorrelated noise and out-of-phase components are reduced.
 
   // (radians)
   const double phaseShift = targetPhaseDegrees * M_PI / 180.0;
@@ -223,9 +199,6 @@ void runPSDForSinglePhase(
 
     const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
-    // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
-    // component of amplitude 'A', the resulting peak value in the output array
-    // matches 'A' exactly.
     const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
     // Remove the DC baseline and multiply by the reference signal
@@ -235,7 +208,6 @@ void runPSDForSinglePhase(
     }
   }
 }
-
 
 
 // This is a simplified version of runPSD that only runs the calculation for a single x value
@@ -253,26 +225,8 @@ void runPhaseProfile(
   // Extract all shared experimental time and frequency dimensions
   const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, timeValues);
 
-  // ---------------------------------------------------------------------------
-  // DC OFFSET SUBTRACTION (BASELINE NORMALISATION)
-  // ---------------------------------------------------------------------------
-  // To avoid false correlations from unmodulated background signals, we compute
-  // and subtract the temporal mean (DC baseline)
   const double mean = calculateMean(averagedPeriod, spectraPerPeriod, spectrumLength, targetXIndex);
 
-  // ---------------------------------------------------------------------------
-  // MAIN PHASE-SENSITIVE DETECTION CALCULATION
-  // ---------------------------------------------------------------------------
-  // We loop through different phase shifts to find exactly when the pattern changes.
-  // Multiplying the signal by a reference waveform and integrating over one period
-  // implements a single-frequency Fourier projection, preferentially extracting
-  // components oscillating at the selected modulation frequency.
-  //
-  // Signal components that are phase-coherent with the reference accumulate
-  // constructively, while components at other frequencies are
-  // progressively attenuated over the integration interval.
-  // Static backgrounds are removed by the DC subtraction, while
-  // uncorrelated noise and out-of-phase components are reduced.
   for (int phaseIndex = 0; phaseIndex < params.phaseCount; phaseIndex++) {
     // (radians)
     const double phaseShift = phaseIndex * phaseResolutionDegrees * M_PI / 180.0;
@@ -284,9 +238,6 @@ void runPhaseProfile(
 
       const double theta = harmonic * params.angularFrequency * t + phaseShift;
 
-      // Scale by (2 / N) to ensure that if the input signal contains a pure sine wave
-      // component of amplitude 'A', the resulting peak value in the output array
-      // matches 'A' exactly.
       const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
 
       // Remove the DC baseline and multiply by the reference signal
