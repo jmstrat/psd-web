@@ -20,8 +20,8 @@ The processing has not been heavily tested. Do not rely solely on this tool with
 
 
 ## Supported Applications
-*   **Pair Distribution Function Analysis:** Takes `.gr` files directly from PDFGetX3
-*   **Any Plain Text Data:** Takes 2 column `.xy` files
+*   **Pair Distribution Function Analysis:** Takes `.gr` files directly from PDFGetX2/3
+*   **Any Plain Text Data:** Takes 2+ column `.xy` / `.csv` / `.dat` / `.txt` files
 *   **Possibly more to come...**
 
 ## How It Works

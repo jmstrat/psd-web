@@ -376,22 +376,29 @@ class GrParser extends XyParser {
     this.inDataSection = false
   }
 
-  parseHeaderLine (line) {
+  parseHeaderLine (line, opts) {
     const trimmed = line.trim()
 
     if (!trimmed || trimmed.startsWith("[")) {
       return true
     }
 
-    if (trimmed.startsWith("#### start data")) {
+    if (trimmed.includes("start data")) {
       this.inDataSection = true
       return true
     }
 
     if (!this.inDataSection) {
-      if (trimmed.includes("=") && !trimmed.startsWith("#")) {
-        const [key, val] = trimmed.split("=")
-        this.metadata[key.trim()] = val.trim()
+      if (trimmed.includes("=")) {
+        const pairs = trimmed.split(/\s+(?=\S+=)/)
+
+        for (const pair of pairs) {
+          if (pair.includes("=") && !pair.startsWith("#")) {
+            const [key, val] = pair.split("=")
+            const cleanVal = val.split(/\s+\(/)[0].trim()
+            this.metadata[key.trim()] = cleanVal
+          }
+        }
       }
       return true
     }
@@ -399,6 +406,9 @@ class GrParser extends XyParser {
     if (trimmed.startsWith("#")) {
       return true
     }
+
+    opts.xColumnIndex = 0
+    opts.yColumnIndices = [1]
 
     return false
   }
