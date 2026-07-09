@@ -74,3 +74,29 @@ export class ExpandableBuffer {
     this.array = newArray
   }
 }
+
+export class BufferPool {
+  #pool = []
+  #initialCapacity
+
+  constructor (initialCapacity = 6000) {
+    this.#initialCapacity = initialCapacity
+  }
+
+  // Request a buffer from the pool, or create a new one if empty
+  requestBuffer (initialSize = this.#initialCapacity) {
+    if (this.#pool.length > 0) {
+      const buf = this.#pool.pop()
+      buf.reset()
+      return buf
+    }
+    return new ExpandableBuffer(Float64Array, initialSize)
+  }
+
+  // Return buffers back to the pool for reuse
+  returnBuffers (buffers) {
+    for (let i = 0; i < buffers.length; i++) {
+      this.#pool.push(buffers[i])
+    }
+  }
+}

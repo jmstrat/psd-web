@@ -1,6 +1,6 @@
 import { CycleMerger } from "./cycle-merger.js"
 import { ParserFactory } from "./parsers.js"
-import { Accumulator, ExpandableBuffer } from "./util.js"
+import { Accumulator, ExpandableBuffer, BufferPool } from "./util.js"
 
 // This is the main file reading loop, it orchestrates the process and validates
 // the data, but the main logic is elsewhere:
@@ -44,17 +44,32 @@ async function readSpectraFiles (files, options = {}) {
     throw new Error("xMin must be less than xMax")
   }
 
-  const spectraPerCycle = Math.round(cyclePeriodSeconds / acquisitionIntervalSeconds)
-  const usableLength = Math.floor(files.length / spectraPerCycle) * spectraPerCycle
-
-  files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
-
   // To avoid hammering GC all data are read into the same underlying buffers
   // As we read files sequentially this will not cause any issues and avoids
   // repeated allocations of large arrays
-  const sharedXBuffer = new ExpandableBuffer(Float64Array, 6000)
-  const sharedYBuffer = new ExpandableBuffer(Float64Array, 6000)
+  const pool = new BufferPool(6000)
   const metadataAccumulator = new Accumulator()
+
+  const parserOptions = {
+    bufferPool: pool,
+    immutable: false,
+    xMin,
+    xMax
+  }
+
+  const spectraPerCycle = Math.round(cyclePeriodSeconds / acquisitionIntervalSeconds)
+
+  files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+
+  // Inspect the first file to find the number of y columns returned per file
+  // Note that we assume all files have the same column spec
+  const preFlightParser = ParserFactory.getParserForFile(files[0].name)
+  const columnsPerFile = await preFlightParser.getDatasetCount(files[0].stream(), parserOptions)
+  preFlightParser.releaseBuffers()
+
+  const totalSpectra = files.length * columnsPerFile
+  const usableSpectraLength = Math.floor(totalSpectra / spectraPerCycle) * spectraPerCycle
+  const usableFileLength = Math.ceil(usableSpectraLength / columnsPerFile)
 
   let merger = null
   let xAxis = null
@@ -62,19 +77,20 @@ async function readSpectraFiles (files, options = {}) {
   let spectrumLength = null
   let dataType = null
   let t0 = null
+  let frames = 0
 
-  for (let i = 0; i < usableLength; i++) {
+  // TODO we should allow the actual time to be parsed from the file
+
+  for (let i = 0; i < usableFileLength; i++) {
     const file = files[i]
     const parser = ParserFactory.getParserForFile(file.name)
 
     // Read the data
-    const { metadata, x, y } = await parser.parseStream(file.stream(), {
-      xBuffer: sharedXBuffer,
-      yBuffer: sharedYBuffer,
-      immutable: false,
-      xMin,
-      xMax
-    })
+    const { metadata, x, y: yArray } = await parser.parseStream(file.stream(), parserOptions)
+
+    if (yArray.length !== columnsPerFile) {
+      throw new Error(`Y column mismatch: ${file.name}. All files must provide the same number of datasets.`)
+    }
 
     // Store any metadata found in the file whilst reading it
     metadataAccumulator.merge(metadata)
@@ -82,29 +98,41 @@ async function readSpectraFiles (files, options = {}) {
     // This is used to validate that the x axis is the same for every file
     const sig = makeSignature(x)
 
-    if (!xSignature) {
-      // First file, extract constants and prepare for averaging
-      xSignature = sig
-      spectrumLength = y.length
-      xAxis = x.slice(0, spectrumLength)
-      dataType = parser.dataType
-      t0 = i * acquisitionIntervalSeconds
+    let reachedLimit = false
+    for (const y of yArray) {
+      // If we are past the final complete cycle then we ignore any additional data
+      if (frames >= usableSpectraLength) {
+        reachedLimit = true
+        break
+      }
 
-      merger = new CycleMerger(spectraPerCycle, spectrumLength, cyclePeriodSeconds)
-    } else {
-      // Subsequent files we just validate that the axes match
-      if (!compareSignature(xSignature, sig)) {
-        throw new Error(`X-axis mismatch: ${file.name}`)
+      if (!xSignature) {
+        // First file, extract constants and prepare for averaging
+        xSignature = sig
+        spectrumLength = y.length
+        xAxis = x.slice(0, spectrumLength)
+        dataType = parser.dataType
+        t0 = frames * acquisitionIntervalSeconds
+
+        merger = new CycleMerger(spectraPerCycle, spectrumLength, cyclePeriodSeconds)
+      } else {
+        // Subsequent files we just validate that the axes match
+        if (!compareSignature(xSignature, sig)) {
+          throw new Error(`X-axis mismatch: ${file.name}`)
+        }
+        if (y.length !== spectrumLength) {
+          throw new Error(`Length mismatch: ${file.name}`)
+        }
       }
-      if (y.length !== spectrumLength) {
-        throw new Error(`Length mismatch: ${file.name}`)
-      }
+
+      // Relative to first frame
+      const relT = frames++ * acquisitionIntervalSeconds - t0
+      // Store the data
+      merger.addFrame(relT, y)
     }
 
-    // Relative to first frame
-    const relT = i * acquisitionIntervalSeconds - t0
-    // Store the data
-    merger.addFrame(relT, y)
+    // Release shared buffers (so they can be reused for the next file)
+    parser.releaseBuffers()
 
     if (progressCallback) {
       progressCallback({
@@ -112,15 +140,19 @@ async function readSpectraFiles (files, options = {}) {
         total: files.length
       })
     }
+
+    if (reachedLimit) {
+      break
+    }
   }
 
-  const discarded = files.length - usableLength
+  const discarded = totalSpectra - usableSpectraLength
   if (discarded > 0) {
     console.warn(`${discarded} spectra discarded (incomplete final cycle)`)
   }
 
   if (!merger) {
-    return null
+    throw new Error('No complete cycles were found to import')
   }
 
   const averagedPeriod = merger.getAveragedPeriod()
