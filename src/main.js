@@ -102,6 +102,7 @@ class ProgressBar {
   hide () {
     this.#container.classList.remove('opacity-100')
     this.#container.classList.add('opacity-0')
+    this.progress = 0
   }
 
   set message (text) {
