@@ -158,13 +158,9 @@ function updateReadyState () {
     status.message = "Please select files to begin"
     status.type = 'info'
 
-    fileStatus.textContent = "No files selected"
-
     progress.hide()
     return
   }
-
-  fileStatus.textContent = `${fileInput.files.length} files ready to process`
 
   if (runButton.disabled) {
     status.message = "Please update the analysis settings"
@@ -196,6 +192,14 @@ function validateForm () {
                         !hasFiles
 
   runButton.disabled = shouldDisable
+
+
+  if (!hasFiles) {
+    fileStatus.textContent = "No files selected"
+  } else {
+    fileStatus.textContent = `${fileInput.files.length} files ready to process`
+  }
+
 
   if (status.type !== 'error') {
     updateReadyState()
