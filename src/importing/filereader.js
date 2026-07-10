@@ -1,5 +1,5 @@
 import { CycleMerger } from "./cycle-merger.js"
-import { ParserFactory } from "./parsers.js"
+import { ParserFactory } from "./parsers/"
 import { Accumulator, BufferPool } from "./util.js"
 
 // This is the main file reading loop, it orchestrates the process and validates
