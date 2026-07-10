@@ -27,6 +27,7 @@
   "dependencies": {
     "chart.js": "^4.5.1",
     "chartjs-plugin-zoom": "^2.2.0",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "h5wasm": "^0.10.3"
   }
 }

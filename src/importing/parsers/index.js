@@ -1,5 +1,6 @@
 import { XyParser } from "./text/tabular/XyParser.js"
 import { GrParser } from "./text/tabular/GrParser.js"
+import { NexusParser } from "./binary/NexusParser.js"
 
 // ParserFactory registers parsers and matches files to an appropriate parser
 export class ParserFactory {
@@ -23,3 +24,4 @@ export class ParserFactory {
 
 ParserFactory.register([".xy", ".csv", ".dat", ".txt"], XyParser)
 ParserFactory.register([".gr"], GrParser)
+ParserFactory.register([".nxs"], NexusParser)
