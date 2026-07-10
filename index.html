@@ -358,6 +358,33 @@
           <input id="xMax" placeholder="Unlimited" type="number" step="any" class="form-input">
         </div>
       </div>
+
+      <div class="pt-2 border-t border-slate-200 space-y-1">
+        <h3 class="text-xs font-light text-slate-700 tracking-wider">Parser Specific Settings</h3>
+        <p class="text-[11px] leading-snug text-slate-400">
+          In general these settings will only apply if the file type is not recognised.
+        </p>
+      </div>
+
+      <label for="input-separator" class="form-label">Column Separator</label>
+      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+        <p id="separator-help" class="text-[11px] leading-tight text-slate-400">Defaults to whitespace or comma</p>
+        <input id="input-separator" aria-describedby="separator-help"
+        placeholder="auto" type="text" maxlength="1" class="form-input truncate text-center py-1">
+      </div>
+
+      <label for="input-x-col" class="form-label">x Column Index</label>
+      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+        <p id="x-col-help" class="text-[11px] leading-tight text-slate-400">Which column contains the x axis (1 based)</p>
+        <input id="input-x-col" aria-describedby="x-col-help"
+        placeholder="1" type="number" step="1" class="form-input truncate text-center py-1">
+      </div>
+
+      <label for="input-y-cols" class="form-label">y Column Indices</label>
+      <p id="y-cols-help" class="text-[11px] leading-tight text-slate-400">Which column(s) contain y axis data (1 based). Use commas to separate values and dashes (-) to specify ranges.</p>
+      <input id="input-y-cols" aria-describedby="y-cols-help"
+      placeholder="2-end" type="text" class="form-input truncate text-center py-1">
+
     </form>
   </div>
 

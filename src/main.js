@@ -13,26 +13,35 @@ import workerModule from './worker.js?worker'
 // The main thread just handles the UI (and plotting)
 const worker = new workerModule()
 
+// Header
 const downloadButton = document.getElementById('downloadButton')
-const runButton = document.getElementById("runButton")
 const helpButton = document.getElementById("helpButton")
 const closeHelp = document.getElementById("closeHelp")
 const helpModal = document.getElementById("helpModal")
 
+// Upload
 const fileInput = document.getElementById("fileUpload")
 const fileStatus = document.getElementById("uploadStatus")
 const chooseButton = document.getElementById("chooseFile")
 
 const metadataContainer = document.getElementById("metadataContainer")
 
+// Analysis settings
 const parametersForm = document.getElementById("parameters")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
 const acquisitionIntervalInput = document.getElementById("acquisitionInterval")
 const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
 const resolutionInput = document.getElementById("resolution")
+
+const runButton = document.getElementById("runButton")
+
+// Input Settings
 const xMinInput = document.getElementById("xMin")
 const xMaxInput = document.getElementById("xMax")
+const sepInput = document.getElementById("input-separator")
+const xColInput = document.getElementById("input-x-col")
+const yColsInput = document.getElementById("input-y-cols")
 
 let currentPsdData = null
 let currentProfileData = null
@@ -229,6 +238,24 @@ function renderMetadata (metadata) {
   }
 }
 
+function rangeToIntArray (input, diff=0) {
+  const result = []
+
+  for (const part of input.split(',')) {
+    const trimmed = part.trim()
+
+    if (trimmed.includes('-')) {
+      const [start, end] = trimmed.split('-').map(Number)
+      for (let i = start; i <= end; i++) {
+        result.push(i + diff)
+      }
+    } else if (trimmed !== "") {
+      result.push(Number(trimmed) + diff)
+    }
+  }
+  return result
+}
+
 chooseButton.addEventListener("click", () => fileInput.click())
 fileInput.addEventListener("change", () => {
   validateForm()
@@ -355,7 +382,12 @@ parametersForm.addEventListener('submit', (event) => {
 
   parserOptions = {
     xMin: Number.isNaN(xMinInput.valueAsNumber) ? -Infinity : xMinInput.valueAsNumber,
-    xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
+    xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber,
+
+    separator: sepInput.value.length > 0 ? sepInput.value : undefined,
+    // Convert from the 1 based user inputs to the internal 0 based values
+    xColumnIndex: Number.isNaN(xColInput.valueAsNumber) ? undefined : xColInput.valueAsNumber - 1,
+    yColumnIndices: yColsInput.value.trim().length > 0 ? rangeToIntArray(yColsInput.value, -1) : undefined
   }
 
   processingOptions = {
