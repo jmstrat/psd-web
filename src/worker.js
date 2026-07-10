@@ -13,20 +13,19 @@ onmessage = async ({ data }) => {
       try {
         await SharedFileReader.loadData(
           data.files,
-          {
-            ...data,
-            progressCallback: (p) => postMessage({
-              type: Messages.PROGRESS,
-              stage: ProgressStage.READING,
-              ...p
-            })
-          }
+          data.averagingOptions,
+          data.parserOptions,
+          (p) => postMessage({
+            type: Messages.PROGRESS,
+            stage: ProgressStage.READING,
+            ...p
+          })
         )
         postMessage({
           type: Messages.PROGRESS,
           stage: ProgressStage.CALCULATING
         })
-        const { transferList, ...result } = runPSD(data)
+        const { transferList, ...result } = runPSD(data.processingOptions)
         postMessage({
           type: Messages.PSD_RESULT,
           ...result

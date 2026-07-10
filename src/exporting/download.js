@@ -6,11 +6,27 @@ const defaultOptions = {
   separator: ','
 }
 
-function getArchiveMetadataStream (parameters) {
+function getArchiveMetadataStream ({
+    averagingOptions,
+    parserOptions,
+    processingOptions
+}) {
   const encoder = new TextEncoder()
 
-  let metaText = `PSD Analysis Parameters\n================\nAnalysis Performed: ${new Date().toISOString()}\n\n`
-  for (const [key, value] of Object.entries(parameters)) {
+  let metaText = `PSD Analysis\n============\nAnalysis Performed: ${new Date().toISOString()}`
+
+  metaText += "\n\nImporting\n---------\n"
+  for (const [key, value] of Object.entries(parserOptions)) {
+    metaText += `- ${key}: ${value}\n`
+  }
+
+  metaText += "\n\nAveraging\n---------\n"
+  for (const [key, value] of Object.entries(averagingOptions)) {
+    metaText += `- ${key}: ${value}\n`
+  }
+
+  metaText += "\n\nProcessing\n----------\n"
+  for (const [key, value] of Object.entries(processingOptions)) {
     metaText += `- ${key}: ${value}\n`
   }
 
@@ -89,7 +105,9 @@ function getArchiveFileStreams (
     psdData,
     profileData,
     singlePhaseData,
-    parameters,
+    averagingOptions,
+    parserOptions,
+    processingOptions,
     canvases
   },
   options
@@ -99,8 +117,6 @@ function getArchiveFileStreams (
     return
   }
 
-  console.log(options)
-
   options = {
     ...defaultOptions,
     ...options
@@ -108,7 +124,11 @@ function getArchiveFileStreams (
 
   const ext = options.separator === ',' ? 'csv' : 'dat'
 
-  const metaStream = getArchiveMetadataStream(parameters)
+  const metaStream = getArchiveMetadataStream({
+    averagingOptions,
+    parserOptions,
+    processingOptions
+  })
 
   const filesToArchive = [
     { name: "meta.txt", stream: metaStream }

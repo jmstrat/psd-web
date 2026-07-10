@@ -18,13 +18,15 @@ class BaseParser {
     ylab: "intensity / unknown"
   }
 
-  constructor () {
+  constructor (options = {}) {
     this.metadata = {}
     this.isHeaderSection = true
     this.expectedYCount = -1
     this.activeXBuffer = null
     this.activeYBuffers = null
     this.activePool = null
+
+    this.options = this.validateOptions(options)
   }
 
   releaseBuffers () {
@@ -42,25 +44,38 @@ class BaseParser {
     this.activePool = null
   }
 
-  async parseStream (fileStream, options = {}) {
-    const reader = fileStream.pipeThrough(new TextDecoderStream()).getReader()
-    let buffer = ""
-
-    // Assign clean internal defaults to ensure properties exist inside hot loops
+  validateOptions (options = {}) {
     const opts = {
       bufferPool: options.bufferPool || new BufferPool(),
-      xMin: options.xMin !== undefined ? options.xMin : -Infinity,
-      xMax: options.xMax !== undefined ? options.xMax : Infinity,
-      xColumnIndex: undefined,
-      yColumnIndices: undefined,
-      separator: options.separator,
       mismatchedColumnStrategy: options.mismatchedColumnStrategy || "throw",
-      invalidNumericStrategy: options.invalidNumericStrategy || "throw",
       immutable: !!options.immutable,
       maxRows: options.maxRows !== undefined ? options.maxRows : Infinity
     }
 
-    const pool = opts.bufferPool
+    if (!(opts.bufferPool instanceof BufferPool)) {
+      throw new TypeError("bufferPool must be an instance of BufferPool")
+    }
+
+    const allowedStrategies = ["throw", "pad-0"]
+    if (!allowedStrategies.includes(opts.mismatchedColumnStrategy)) {
+      throw new TypeError('mismatchedColumnStrategy must be either "throw" or "pad-0"')
+    }
+
+    if (opts.maxRows !== Infinity) {
+      if (!Number.isInteger(opts.maxRows) || opts.maxRows <= 0) {
+        throw new TypeError("maxRows must be a positive integer or Infinity")
+      }
+    }
+
+    return opts
+  }
+
+
+  async parseStream (fileStream) {
+    const reader = fileStream.pipeThrough(new TextDecoderStream()).getReader()
+    let buffer = ""
+
+    const pool = this.options.bufferPool
     this.activePool = pool
     this.activeXBuffer = pool.requestBuffer()
     this.activeYBuffers = [pool.requestBuffer()]
@@ -92,11 +107,11 @@ class BaseParser {
             const line = buffer.substring(lineStart, i)
 
             if (line.length > 0) {
-              const status = this.#processLine(line, this.activeXBuffer, this.activeYBuffers, outResult, pool, opts)
+              const status = this.#processLine(line, this.activeXBuffer, this.activeYBuffers, outResult, pool)
 
               if (status === BaseParser.status.valid_data) {
                 validRowsParsed++
-                if (validRowsParsed >= opts.maxRows) {
+                if (validRowsParsed >= this.options.maxRows) {
                   shouldBreak = true
                   break
                 }
@@ -125,7 +140,7 @@ class BaseParser {
 
         if (done) {
           if (buffer.length > 0) {
-            this.#processLine(buffer, this.activeXBuffer, this.activeYBuffers, outResult, pool, opts)
+            this.#processLine(buffer, this.activeXBuffer, this.activeYBuffers, outResult, pool)
           }
           break
         }
@@ -135,7 +150,7 @@ class BaseParser {
       reader.releaseLock()
     }
 
-    const immutable = opts.immutable
+    const immutable = this.options.immutable
     const yOutputs = new Array(this.activeYBuffers.length)
     for (let i = 0; i < this.activeYBuffers.length; i++) {
       yOutputs[i] = this.activeYBuffers[i].getValue(immutable)
@@ -148,17 +163,17 @@ class BaseParser {
     }
   }
 
-  async getDatasetCount (fileStream, options = {}) {
-    const data = await this.parseStream(fileStream, {
-      ...options,
-      maxRows: 1
-    })
+  async getDatasetCount (fileStream) {
+    const mr = this.options.maxRows
+    this.options.maxRows = 1
+    const data = await this.parseStream(fileStream)
+    this.options.maxRows = mr
     return data.y.length
   }
 
-  #processLine (line, xBuffer, yBuffers, outResult, pool, opts) {
+  #processLine (line, xBuffer, yBuffers, outResult, pool) {
     if (this.isHeaderSection) {
-      const handled = this.parseHeaderLine(line, opts)
+      const handled = this.parseHeaderLine(line)
       if (handled) {
         return BaseParser.status.no_data
       }
@@ -167,7 +182,7 @@ class BaseParser {
     }
 
     // outResult container avoids repeated allocations
-    const status = this.parseLine(line, outResult, opts)
+    const status = this.parseLine(line, outResult)
     if (status === BaseParser.status.valid_data) {
       const currentYCount = outResult.parsedCount
 
@@ -199,11 +214,11 @@ class BaseParser {
     return status
   }
 
-  parseHeaderLine (line, opts) {
+  parseHeaderLine (line) {
     return false
   }
 
-  parseLine (line, outResult, opts) {
+  parseLine (line, outResult) {
     throw new Error("parseLine() must be implemented by subclass")
   }
 }
@@ -213,11 +228,58 @@ class BaseParser {
 // This is a little messy, but we get a fairly significant performance bump by
 // avoiding regex
 class XyParser extends BaseParser {
-  parseHeaderLine (line, opts) {
+  validateOptions (options = {}) {
+    const opts = {
+      xMin: options.xMin !== undefined ? options.xMin : -Infinity,
+      xMax: options.xMax !== undefined ? options.xMax : Infinity,
+      xColumnIndex: options.xColumnIndex,
+      yColumnIndices: options.yColumnIndices,
+      separator: options.separator,
+      invalidNumericStrategy: options.invalidNumericStrategy || "throw",
+      ...super.validateOptions(options)
+    }
+
+    if (
+      typeof opts.xMin !== 'number' || typeof opts.xMax !== 'number' ||
+      Number.isNaN(opts.xMin) || Number.isNaN(opts.xMax) || opts.xMin >= opts.xMax
+    ) {
+      throw new TypeError("xMin must be less than xMax")
+    }
+
+    if (
+      typeof opts.xColumnIndex !== 'undefined' &&
+      (!Number.isInteger(opts.xColumnIndex) || opts.xColumnIndex < 0)
+    ) {
+      throw new TypeError("xColumnIndex must be a non-negative integer")
+    }
+
+    if (
+      typeof opts.yColumnIndices !== 'undefined' &&
+      (!Array.isArray(opts.yColumnIndices) || opts.yColumnIndices.some(i => !Number.isInteger(i) || i < 0))
+    ) {
+      throw new TypeError("yColumnIndices must be an array of non-negative integers")
+    }
+
+    if (
+      typeof opts.separator !== 'undefined' &&
+      (typeof opts.separator !== 'string' || [...opts.separator].length !== 1)
+    ) {
+      throw new TypeError("separator must be a single character string")
+    }
+
+    const allowedStrategies = ["throw", "pad-0"]
+    if (!allowedStrategies.includes(opts.invalidNumericStrategy)) {
+      throw new RangeError('invalidNumericStrategy must be either "throw" or "pad-0"')
+    }
+
+    return opts
+  }
+
+  parseHeaderLine (line) {
     const len = line.length
     let i = 0
 
-    const separator = opts?.separator
+    const separator = this.options.separator
 
     // Skip leading whitespace
     while (i < len && (line[i] === ' ' || line[i] === '\t' || line[i] === '\r' || line[i] === '\n')) {
@@ -251,9 +313,11 @@ class XyParser extends BaseParser {
     return false
   }
 
-  parseLine (line, outResult, opts) {
+  parseLine (line, outResult) {
     const len = line.length
     let i = 0
+
+    const opts = this.options
 
     const xMin = opts.xMin
     const xMax = opts.xMax
@@ -371,12 +435,23 @@ class GrParser extends XyParser {
     ylab: "G(r)"
   }
 
-  constructor () {
-    super()
+  constructor (...args) {
+    super(...args)
     this.inDataSection = false
   }
 
-  parseHeaderLine (line, opts) {
+  validateOptions (options) {
+    // Override any options to use required values for these files
+    const opts = {
+      ...options,
+      xColumnIndex: 0,
+      yColumnIndices: [1],
+      separator: " "
+    }
+    return super.validateOptions(opts)
+  }
+
+  parseHeaderLine (line) {
     const trimmed = line.trim()
 
     if (!trimmed || trimmed.startsWith("[")) {
@@ -407,9 +482,6 @@ class GrParser extends XyParser {
       return true
     }
 
-    opts.xColumnIndex = 0
-    opts.yColumnIndices = [1]
-
     return false
   }
 }
@@ -424,13 +496,13 @@ export class ParserFactory {
     }
   }
 
-  static getParserForFile (fileName) {
+  static getParserForFile (fileName, options) {
     const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase()
     const ParserClass = this.#registry.get(ext)
     if (!ParserClass) {
       throw new Error(`Unsupported file extension: ${ext}`)
     }
-    return new ParserClass()
+    return new ParserClass(options)
   }
 }
 

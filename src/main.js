@@ -37,7 +37,10 @@ const xMaxInput = document.getElementById("xMax")
 let currentPsdData = null
 let currentProfileData = null
 let currentSinglePhaseData = null
-let currentParameters = {}
+
+let averagingOptions = {}
+let parserOptions = {}
+let processingOptions = {}
 
 let isWorkerReady = false
 
@@ -280,7 +283,7 @@ worker.onmessage = ({ data }) => {
       validateForm()
 
       currentSinglePhaseData = data
-      currentParameters.selectedPhase = data.targetPhase
+      processingOptions.selectedPhase = data.targetPhase
 
       console.time("Plotting Single Phase")
       renderSinglePhase(data)
@@ -290,8 +293,8 @@ worker.onmessage = ({ data }) => {
       validateForm()
 
       currentProfileData = data
-      currentParameters.phaseProfileForX = data.selectedX
-      currentParameters.maxPhaseFromProfile = data.maxPhase
+      processingOptions.phaseProfileForX = data.selectedX
+      processingOptions.maxPhaseFromProfile = data.maxPhase
 
       console.time("Plotting Phase Profile")
       renderPhaseProfile(data, onPhaseProfileClick)
@@ -318,8 +321,10 @@ worker.onmessage = ({ data }) => {
           psdData: currentPsdData,
           profileData: currentProfileData,
           singlePhaseData: currentSinglePhaseData,
-          parameters: currentParameters,
-          canvases: images,
+          averagingOptions,
+          parserOptions,
+          processingOptions,
+          canvases: images
         },
         {
           multicolumn: document.getElementById('export-multi-datasets').value,
@@ -343,20 +348,28 @@ parametersForm.addEventListener('submit', (event) => {
   status.type = 'info'
   runButton.disabled = true
 
-  currentParameters = {
+  averagingOptions = {
     cyclePeriodSeconds: cyclePeriodInput.valueAsNumber,
-    acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber,
+    acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber
+  }
+
+  parserOptions = {
+    xMin: Number.isNaN(xMinInput.valueAsNumber) ? -Infinity : xMinInput.valueAsNumber,
+    xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
+  }
+
+  processingOptions = {
     resolution: resolutionInput.valueAsNumber,
     waveType: waveTypeInput.value,
     harmonic: harmonicInput.valueAsNumber,
-    xMin: Number.isNaN(xMinInput.valueAsNumber) ? -Infinity : xMinInput.valueAsNumber,
-    xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber
   }
 
   worker.postMessage({
       type: Messages.IMPORT_AND_RUN_PSD,
       files: [...fileInput.files],
-      ...currentParameters
+      averagingOptions,
+      parserOptions,
+      processingOptions
     }
   )
 })
@@ -369,8 +382,8 @@ function onPSDChartClick (x, idx) {
     type: Messages.GET_PHASE_PROFILE,
     xIndex: idx,
     resolution: 1,
-    waveType: currentParameters.waveType,
-    harmonic: currentParameters.harmonic
+    waveType: processingOptions.waveType,
+    harmonic: processingOptions.harmonic
   })
 }
 
@@ -379,8 +392,8 @@ function onPhaseProfileClick (x, idx) {
   status.type = 'info'
   worker.postMessage({
     type: Messages.GET_SINGLE_PHASE,
-    waveType: currentParameters.waveType,
-    harmonic: currentParameters.harmonic,
+    waveType: processingOptions.waveType,
+    harmonic: processingOptions.harmonic,
     targetPhase: Math.round(x)
   })
 }

@@ -1,19 +1,22 @@
 import { CycleMerger } from "./cycle-merger.js"
 import { ParserFactory } from "./parsers.js"
-import { Accumulator, ExpandableBuffer, BufferPool } from "./util.js"
+import { Accumulator, BufferPool } from "./util.js"
 
 // This is the main file reading loop, it orchestrates the process and validates
 // the data, but the main logic is elsewhere:
 // parsers.js contains the file reading code and handles support of different file types
 // cycle-merger.js handles averaging the spectra into one single period
-async function readSpectraFiles (files, options = {}) {
+async function readSpectraFiles (
+  files,
+  averagingOptions = {},
+  parserOptions = {},
+  progressCallback = null
+) {
+
   const {
     cyclePeriodSeconds,
-    acquisitionIntervalSeconds,
-    xMin = -Infinity,
-    xMax = Infinity,
-    progressCallback
-  } = options
+    acquisitionIntervalSeconds
+  } = averagingOptions
 
   if (!files || !files.length) {
     throw new Error("No files provided")
@@ -37,24 +40,16 @@ async function readSpectraFiles (files, options = {}) {
     throw new Error("acquisitionIntervalSeconds must be smaller than cyclePeriodSeconds")
   }
 
-  if (
-    typeof xMin !== 'number' || typeof xMax !== 'number' ||
-    Number.isNaN(xMin) || Number.isNaN(xMax) || xMin >= xMax
-  ) {
-    throw new Error("xMin must be less than xMax")
-  }
-
   // To avoid hammering GC all data are read into the same underlying buffers
   // As we read files sequentially this will not cause any issues and avoids
   // repeated allocations of large arrays
   const pool = new BufferPool(6000)
   const metadataAccumulator = new Accumulator()
 
-  const parserOptions = {
+  parserOptions = {
+    ...parserOptions,
     bufferPool: pool,
-    immutable: false,
-    xMin,
-    xMax
+    immutable: false
   }
 
   const spectraPerCycle = Math.round(cyclePeriodSeconds / acquisitionIntervalSeconds)
@@ -63,8 +58,8 @@ async function readSpectraFiles (files, options = {}) {
 
   // Inspect the first file to find the number of y columns returned per file
   // Note that we assume all files have the same column spec
-  const preFlightParser = ParserFactory.getParserForFile(files[0].name)
-  const columnsPerFile = await preFlightParser.getDatasetCount(files[0].stream(), parserOptions)
+  const preFlightParser = ParserFactory.getParserForFile(files[0].name, parserOptions)
+  const columnsPerFile = await preFlightParser.getDatasetCount(files[0].stream())
   preFlightParser.releaseBuffers()
 
   const totalSpectra = files.length * columnsPerFile
@@ -83,10 +78,10 @@ async function readSpectraFiles (files, options = {}) {
 
   for (let i = 0; i < usableFileLength; i++) {
     const file = files[i]
-    const parser = ParserFactory.getParserForFile(file.name)
+    const parser = ParserFactory.getParserForFile(file.name, parserOptions)
 
     // Read the data
-    const { metadata, x, y: yArray } = await parser.parseStream(file.stream(), parserOptions)
+    const { metadata, x, y: yArray } = await parser.parseStream(file.stream())
 
     if (yArray.length !== columnsPerFile) {
       throw new Error(`Y column mismatch: ${file.name}. All files must provide the same number of datasets.`)
@@ -198,24 +193,24 @@ class CachedFileReader {
   cachedData = null
   cachedSignature = ""
 
-  #getSignature (files, config) {
+  #getSignature (files, averagingOptions, parserOptions) {
     if (!files || !files.length) {
       return ""
     }
 
     const filesPart = files.map(f => `${f.name}_${f.size}_${f.lastModified}`).join("|")
-    const configPart = `${config.cyclePeriodSeconds}_${config.acquisitionIntervalSeconds}_${config.xMin}_${config.xMax}`
+    const configPart = `${JSON.stringify(averagingOptions)}||${JSON.stringify(parserOptions)}`
     return `${filesPart}||${configPart}`
   }
 
-  async loadData (files, config) {
-    const newSignature = this.#getSignature(files, config)
+  async loadData (files, averagingOptions, parserOptions, progressCallback) {
+    const newSignature = this.#getSignature(files, averagingOptions, parserOptions)
     if (this.cachedSignature === newSignature) {
       console.log("Using cached data")
       return this.cachedData
     }
     console.time("Read Data")
-    const data = await readSpectraFiles(files, config)
+    const data = await readSpectraFiles(files, averagingOptions, parserOptions, progressCallback)
     console.timeEnd("Read Data")
     this.cachedData = data
     this.cachedSignature = newSignature
