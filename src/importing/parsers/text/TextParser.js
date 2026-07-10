@@ -24,10 +24,8 @@ export class TextParser extends BaseParser {
     const reader = fileStream.pipeThrough(new TextDecoderStream()).getReader()
     let buffer = ""
 
-    const pool = this.options.bufferPool
-    this.activePool = pool
-    this.activeXBuffer = pool.requestBuffer()
-    this.activeYBuffers = [pool.requestBuffer()]
+    const xBuffer = this.requestBuffer()
+    const yBuffers = [this.requestBuffer()]
 
     this.expectedYCount = -1
     this.isHeaderSection = true
@@ -60,7 +58,7 @@ export class TextParser extends BaseParser {
             const line = buffer.substring(lineStart, i)
 
             if (line.length > 0) {
-              const status = this.#processLine(line, this.activeXBuffer, this.activeYBuffers, outResult, pool)
+              const status = this.#processLine(line, xBuffer, yBuffers, outResult)
 
               if (status === TextParser.status.valid_data) {
                 validRowsParsed++
@@ -93,7 +91,7 @@ export class TextParser extends BaseParser {
 
         if (done) {
           if (buffer.length > 0) {
-            this.#processLine(buffer, this.activeXBuffer, this.activeYBuffers, outResult, pool)
+            this.#processLine(buffer, xBuffer, yBuffers, outResult)
           }
           break
         }
@@ -103,14 +101,14 @@ export class TextParser extends BaseParser {
     }
 
     const immutable = this.options.immutable
-    const yOutputs = new Array(this.activeYBuffers.length)
-    for (let i = 0; i < this.activeYBuffers.length; i++) {
-      yOutputs[i] = this.activeYBuffers[i].getValue(immutable)
+    const yOutputs = new Array(yBuffers.length)
+    for (let i = 0; i < yBuffers.length; i++) {
+      yOutputs[i] = yBuffers[i].getValue(immutable)
     }
 
     return {
       metadata: this.metadata,
-      x: this.activeXBuffer.getValue(immutable),
+      x: xBuffer.getValue(immutable),
       y: yOutputs
     }
   }
@@ -123,7 +121,7 @@ export class TextParser extends BaseParser {
     return data.y.length
   }
 
-  #processLine (line, xBuffer, yBuffers, outResult, pool) {
+  #processLine (line, xBuffer, yBuffers, outResult) {
     if (this.isHeaderSection) {
       const handled = this.parseHeaderLine(line)
       if (handled) {
@@ -149,7 +147,7 @@ export class TextParser extends BaseParser {
 
       // Expand y buffers array if the file contains more columns
       while (yBuffers.length < currentYCount) {
-        yBuffers.push(pool.requestBuffer())
+        yBuffers.push(this.requestBuffer())
       }
 
       const rawYArray = outResult.yValues.array

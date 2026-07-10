@@ -13,26 +13,27 @@ export class BaseParser {
 
   constructor (options = {}) {
     this.metadata = {}
-    this.activeXBuffer = null
-    this.activeYBuffers = null
+    this.activeBuffers = new Set()
     this.activePool = null
 
     this.options = this.validateOptions(options)
+    const pool = this.options.bufferPool
+    this.activePool = pool
   }
 
   releaseBuffers () {
     if (!this.activePool) {
       return
     }
-    if (this.activeXBuffer) {
-      this.activePool.returnBuffers([this.activeXBuffer])
-      this.activeXBuffer = null
-    }
-    if (this.activeYBuffers) {
-      this.activePool.returnBuffers(this.activeYBuffers)
-      this.activeYBuffers = null
-    }
+    this.activePool.returnBuffers(Array.from(this.activeBuffers))
     this.activePool = null
+    this.activeBuffers.clear()
+  }
+
+  requestBuffer () {
+    const buffer = this.activePool.requestBuffer()
+    this.activeBuffers.add(buffer)
+    return buffer
   }
 
   validateOptions (options = {}) {
