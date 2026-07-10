@@ -1,10 +1,9 @@
 import { ExpandableBuffer, BufferPool } from "./util.js"
 
 // We use a class based system to parse data files so that it is easy to extend support
-// to additional file types. All parses must extend from BaseParser. They should at
-// minimum implement parseLine. parseHeaderLine can optionally implemented to
-// read metadata and store it in `this.metadata`. dataType should be set if known,
-// and is used to set the axis titles for the main plots.
+// to additional file types. All parsers must extend from BaseParser. They should at
+// minimum implement parse(). dataType should be set if known, and is used to set the
+// axis titles for the main plots.
 class BaseParser {
   static status = {
     no_data: 0,
@@ -20,8 +19,6 @@ class BaseParser {
 
   constructor (options = {}) {
     this.metadata = {}
-    this.isHeaderSection = true
-    this.expectedYCount = -1
     this.activeXBuffer = null
     this.activeYBuffers = null
     this.activePool = null
@@ -70,8 +67,29 @@ class BaseParser {
     return opts
   }
 
+  async parse (file) {
+    throw new Error("parse() must be implemented by subclass")
+  }
 
-  async parseStream (fileStream) {
+  async getDatasetCount (file) {
+    throw new Error("getDatasetCount() must be implemented by subclass")
+  }
+}
+
+// TextParser reads a plain text file line by line
+// subclasses MUST implement parseLine to actually import data
+// subclasses may optionally implement parseHeaderLine to skip or read
+// metadata from headers
+// If a subclass takes options, then validateOptions should also be implemented
+class TextParser extends BaseParser {
+  constructor (options = {}) {
+    super(options)
+    this.isHeaderSection = true
+    this.expectedYCount = -1
+  }
+
+  async parse (file) {
+    const fileStream = file.stream()
     const reader = fileStream.pipeThrough(new TextDecoderStream()).getReader()
     let buffer = ""
 
@@ -81,10 +99,14 @@ class BaseParser {
     this.activeYBuffers = [pool.requestBuffer()]
 
     this.expectedYCount = -1
+    this.isHeaderSection = true
 
-    // Container used to pass values back from parseLine
-    // without creating new object allocations on every single line.
-    const outResult = { x: 0, yValues: new ExpandableBuffer(Float64Array, 16), parsedCount: 0 }
+    // outResult container avoids repeated allocations
+    const outResult = {
+      x: 0,
+      yValues: new ExpandableBuffer(Float64Array, 16),
+      parsedCount: 0
+    }
 
     let shouldBreak = false
     let validRowsParsed = 0
@@ -131,10 +153,10 @@ class BaseParser {
           i++
         }
 
-          if (shouldBreak) {
-            await reader.cancel("All required data was read")
-            break
-          }
+        if (shouldBreak) {
+          await reader.cancel("All required data was read")
+          break
+        }
 
         buffer = buffer.substring(lineStart)
 
@@ -146,7 +168,6 @@ class BaseParser {
         }
       }
     } finally {
-      // Ensure the reader lock is safely released regardless of how we exited
       reader.releaseLock()
     }
 
@@ -163,10 +184,10 @@ class BaseParser {
     }
   }
 
-  async getDatasetCount (fileStream) {
+  async getDatasetCount (file) {
     const mr = this.options.maxRows
     this.options.maxRows = 1
-    const data = await this.parseStream(fileStream)
+    const data = await this.parse(file)
     this.options.maxRows = mr
     return data.y.length
   }
@@ -181,7 +202,6 @@ class BaseParser {
       this.isHeaderSection = false
     }
 
-    // outResult container avoids repeated allocations
     const status = this.parseLine(line, outResult)
     if (status === BaseParser.status.valid_data) {
       const currentYCount = outResult.parsedCount
@@ -189,7 +209,7 @@ class BaseParser {
       if (this.expectedYCount === -1) {
         this.expectedYCount = currentYCount
       } else if (currentYCount !== this.expectedYCount) {
-        if (opts.mismatchedColumnStrategy === "throw") {
+        if (this.options.mismatchedColumnStrategy === "throw") {
           throw new Error(`Mismatched column count encountered. Expected ${this.expectedYCount} columns but found ${currentYCount}.`)
         }
       }
@@ -205,6 +225,7 @@ class BaseParser {
       for (let i = 0; i < currentYCount; i++) {
         yBuffers[i].push(rawYArray[i])
       }
+
       // Pad remaining buffers if this line happened to have fewer columns than previous lines
       // and opts.mismatchedColumnStrategy is not "throw"
       for (let i = currentYCount; i < yBuffers.length; i++) {
@@ -227,7 +248,7 @@ class BaseParser {
 // XyParser is a generic parser to read tabulated data.
 // This is a little messy, but we get a fairly significant performance bump by
 // avoiding regex
-class XyParser extends BaseParser {
+class XyParser extends TextParser {
   validateOptions (options = {}) {
     const opts = {
       xMin: options.xMin !== undefined ? options.xMin : -Infinity,

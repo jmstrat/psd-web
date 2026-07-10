@@ -59,7 +59,7 @@ async function readSpectraFiles (
   // Inspect the first file to find the number of y columns returned per file
   // Note that we assume all files have the same column spec
   const preFlightParser = ParserFactory.getParserForFile(files[0].name, parserOptions)
-  const columnsPerFile = await preFlightParser.getDatasetCount(files[0].stream())
+  const columnsPerFile = await preFlightParser.getDatasetCount(files[0])
   preFlightParser.releaseBuffers()
 
   const totalSpectra = files.length * columnsPerFile
@@ -81,7 +81,7 @@ async function readSpectraFiles (
     const parser = ParserFactory.getParserForFile(file.name, parserOptions)
 
     // Read the data
-    const { metadata, x, y: yArray } = await parser.parseStream(file.stream())
+    const { metadata, x, y: yArray } = await parser.parse(file)
 
     if (yArray.length !== columnsPerFile) {
       throw new Error(`Y column mismatch: ${file.name}. All files must provide the same number of datasets.`)
