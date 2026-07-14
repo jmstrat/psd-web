@@ -15,60 +15,63 @@ export class NexusParser extends BaseParser {
   }
 
   async #openVirtualFile (fileObj) {
+    if (this.file) {
+      throw new Error('File already open')
+    }
     const { FS } = await h5wasm.ready
+    FS.mkdir('/work')
+    FS.mount(FS.filesystems.WORKERFS, { files: [fileObj] }, '/work')
+    this.file = new h5wasm.File(`/work/${fileObj.name}`, 'r')
+  }
 
-    const arrayBuffer = await fileObj.arrayBuffer()
-    const filename = `memfile_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.nxs`
-
-    FS.writeFile(filename, new Uint8Array(arrayBuffer))
-    const h5file = new h5wasm.File(filename, "r")
-
-    return { h5file, filename }
+  async #closeVirtualFile () {
+    if (!this.file) {
+      return
+    }
+    const { FS } = await h5wasm.ready
+    this.file.close()
+    FS.unmount('/work')
+    FS.rmdir('/work')
   }
 
   async getDatasetCount (fileObj) {
-    const { FS } = await h5wasm.ready
-    const { h5file, filename } = await this.#openVirtualFile(fileObj)
+    await this.#openVirtualFile(fileObj)
 
     try {
-      const nxDataPath = this.options.dataPath || this.#findDefaultDataPath(h5file)
-      const dataGroup = h5file.get(nxDataPath)
+      const nxDataPath = this.options.dataPath || this.#findDefaultDataPath()
+      const dataGroup = this.file.get(nxDataPath)
       if (!dataGroup) {
         return 0
       }
 
-      const yNames = this.#resolveYNames(h5file, dataGroup, nxDataPath)
+      const yNames = this.#resolveYNames(dataGroup, nxDataPath)
       return yNames.length
     } finally {
-      h5file.close()
-      try {
-        FS.unlink(filename)
-      } catch (e) {}
+      await this.#closeVirtualFile()
     }
   }
 
   async parse (fileObj) {
-    const { FS } = await h5wasm.ready
-    const { h5file, filename } = await this.#openVirtualFile(fileObj)
+    await this.#openVirtualFile(fileObj)
 
     try {
-      this.#extractGlobalMetadata(h5file)
-      const nxDataPath = this.options.dataPath || this.#findDefaultDataPath(h5file)
-      const dataGroup = h5file.get(nxDataPath)
+      this.#extractGlobalMetadata()
+      const nxDataPath = this.options.dataPath || this.#findDefaultDataPath()
+      const dataGroup = this.file.get(nxDataPath)
 
       if (!dataGroup) {
         throw new Error(`Target structural data path "${nxDataPath}" not found.`)
       }
 
       const xName = this.#resolveXName(dataGroup)
-      const yNames = this.#resolveYNames(h5file, dataGroup, nxDataPath)
+      const yNames = this.#resolveYNames(dataGroup, nxDataPath)
 
-      const xDataset = h5file.get(`${nxDataPath}/${xName}`)
+      const xDataset = this.file.get(`${nxDataPath}/${xName}`)
       const primaryYName = yNames[0] || null
-      const yDataset = primaryYName ? h5file.get(`${nxDataPath}/${primaryYName}`) : null
+      const yDataset = primaryYName ? this.file.get(`${nxDataPath}/${primaryYName}`) : null
 
       this.dataType = {
-        id: h5file.attrs["program_name"]?.value || "nexus_file",
+        id: this.file.attrs["program_name"]?.value || "nexus_file",
         xlab: this.#getLabel(xDataset, xName, "x / unknown"),
         ylab: this.#getLabel(yDataset, primaryYName, "intensity / unknown")
       }
@@ -88,7 +91,7 @@ export class NexusParser extends BaseParser {
 
       for (let i = 0; i < yNames.length; i++) {
         const name = yNames[i]
-        const dset = h5file.get(`${nxDataPath}/${name}`)
+        const dset = this.file.get(`${nxDataPath}/${name}`)
 
         if (dset) {
           const yValues = dset.value
@@ -118,10 +121,7 @@ export class NexusParser extends BaseParser {
         y: yOutputs
       }
     } finally {
-      h5file.close()
-      try {
-        FS.unlink(filename)
-      } catch (e) {}
+      await this.#closeVirtualFile()
     }
   }
 
@@ -140,7 +140,7 @@ export class NexusParser extends BaseParser {
     return "x"
   }
 
-  #resolveYNames (h5file, dataGroup, nxDataPath) {
+  #resolveYNames (dataGroup, nxDataPath) {
     const signal = this.#getAttrValue(dataGroup, "signal")
     const auxSignals = this.#getAttrValue(dataGroup, "auxiliary_signals")
     const xName = this.#resolveXName(dataGroup)
@@ -162,7 +162,7 @@ export class NexusParser extends BaseParser {
         if (key === xName) {
           return false
         }
-        const node = h5file.get(`${nxDataPath}/${key}`)
+        const node = this.file.get(`${nxDataPath}/${key}`)
         return node && node.type === "Dataset"
       })
     }
@@ -170,13 +170,13 @@ export class NexusParser extends BaseParser {
     return yNames
   }
 
-  #findDefaultDataPath (h5file) {
+  #findDefaultDataPath () {
     let entryName = "entry"
-    if (h5file.attrs["default"]) {
-      entryName = h5file.attrs["default"].value
+    if (this.file.attrs["default"]) {
+      entryName = this.file.attrs["default"].value
     }
 
-    const entryGroup = h5file.get(entryName)
+    const entryGroup = this.file.get(entryName)
     if (!entryGroup) {
       return "/entry/data"
     }
@@ -189,10 +189,10 @@ export class NexusParser extends BaseParser {
     return `/${entryName}/${dataName}`.replace(/\/+/g, "/")
   }
 
-  #extractGlobalMetadata (h5file) {
+  #extractGlobalMetadata () {
     this.metadata = {}
-    for (const key of Object.keys(h5file.attrs)) {
-      const attr = h5file.attrs[key]
+    for (const key of Object.keys(this.file.attrs)) {
+      const attr = this.file.attrs[key]
       if (attr && typeof attr.value !== "object") {
         this.metadata[key] = attr.value
       }
@@ -200,7 +200,7 @@ export class NexusParser extends BaseParser {
 
     for (const path of metadataDiscoveryPaths) {
       const parts = path.split("/").filter(Boolean)
-      let currentGroup = h5file
+      let currentGroup = this.file
       let isValidPath = true
 
       for (const part of parts) {
