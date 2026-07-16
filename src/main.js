@@ -1,5 +1,8 @@
 import './styles.css'
 import { Messages, ProgressStage } from "./messages.js"
+import { StatusMessage } from "./ui/status-message.js"
+import { ProgressBar } from "./ui/progress-bar.js"
+import { MetadataRenderer } from "./ui/metadata-renderer.js"
 import {
   destroyPSD, renderPSD,
   destroyPhaseProfile, renderPhaseProfile,
@@ -23,8 +26,6 @@ const helpModal = document.getElementById("helpModal")
 const fileInput = document.getElementById("fileUpload")
 const fileStatus = document.getElementById("uploadStatus")
 const chooseButton = document.getElementById("chooseFile")
-
-const metadataContainer = document.getElementById("metadataContainer")
 
 // Analysis settings
 const parametersForm = document.getElementById("parameters")
@@ -53,95 +54,9 @@ let processingOptions = {}
 
 let isWorkerReady = false
 
-class StatusMessage {
-  #element
-  #span
-  #type
-  #typeStyles = {
-    info: { bg: 'bg-blue-100', text: 'text-blue-700' },
-    success: { bg: 'bg-emerald-100', text: 'text-emerald-700' },
-    error: { bg: 'bg-rose-100', text: 'text-rose-700' }
-  }
-
-  constructor (element) {
-    this.#element = element
-    this.#span = element.querySelector('#status') || element.querySelector('span')
-    this.message = "Loading..."
-    this.type = 'info'
-  }
-
-  set message (text) {
-    if (this.#span) {
-      this.#span.textContent = text
-    }
-  }
-
-  get type () {
-    return this.#type
-  }
-
-  set type (type) {
-    this.#type = type
-    const config = this.#typeStyles[type] || this.#typeStyles.info
-
-    Object.values(this.#typeStyles).forEach(style => {
-      this.#element.classList.remove(style.bg, style.text)
-    })
-
-    this.#element.classList.add(config.bg, config.text)
-  }
-}
-
-class ProgressBar {
-  #container
-  #bar
-  #message
-
-  constructor (containerElement) {
-    this.#container = containerElement
-    this.#bar = containerElement.querySelector('#progressBar')
-    this.#message = containerElement.querySelector('#progressText')
-
-    this.message = "Processing..."
-    this.progress = null
-  }
-
-  show () {
-    this.#container.classList.remove('opacity-0')
-    this.#container.classList.add('opacity-100')
-  }
-
-  hide () {
-    this.#container.classList.remove('opacity-100')
-    this.#container.classList.add('opacity-0')
-    this.progress = 0
-  }
-
-  set message (text) {
-    if (this.#message) {
-      this.#message.textContent = text
-    }
-  }
-
-  set progress (value) {
-    if (value === null || value === undefined) {
-      this.#bar.removeAttribute('value')
-    } else {
-      this.#bar.value = value
-    }
-  }
-
-  set min (value) {
-    this.#bar.min = value
-  }
-
-  set max (value) {
-    this.#bar.max = value
-  }
-}
-
 const status = new StatusMessage(document.getElementById("statusBadge"))
 const progress = new ProgressBar(document.getElementById('progressContainer'))
+const metadata = new MetadataRenderer(document.getElementById("metadataContainer"))
 
 function updateReadyState () {
   const hasFiles = fileInput.files && fileInput.files.length > 0
@@ -206,42 +121,6 @@ function validateForm () {
   }
 }
 
-function renderMetadata (metadata) {
-  metadataContainer.innerHTML = ""
-
-  for (const [key, value] of Object.entries(metadata)) {
-    const row = document.createElement("div")
-    row.className = "flex flex-col gap-1 border-b border-dashed border-slate-200 pb-3 last:border-0 last:pb-0"
-
-    const label = document.createElement("span")
-    label.className = "font-semibold text-slate-700"
-    const humanKey = key.replace(/([A-Z])/g, ' $1').trim()
-    label.textContent = humanKey.charAt(0).toUpperCase() + humanKey.slice(1)
-
-    row.appendChild(label)
-
-    if (Array.isArray(value)) {
-      const badgeWrapper = document.createElement("div")
-      badgeWrapper.className = "flex flex-wrap gap-1.5 max-h-[80px] overflow-y-auto mt-0.5 scrollbar-simple"
-
-      for (const item of value) {
-        const badge = document.createElement("span")
-        badge.className = "inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-medium text-slate-600"
-        badge.textContent = item
-        badgeWrapper.appendChild(badge)
-      }
-      row.appendChild(badgeWrapper)
-    } else {
-      const valueSpan = document.createElement("span")
-      valueSpan.className = "text-slate-500 break-all"
-      valueSpan.textContent = value
-      row.appendChild(valueSpan)
-    }
-
-    metadataContainer.appendChild(row)
-  }
-}
-
 function rangeToIntArray (input, diff=0) {
   const result = []
 
@@ -299,7 +178,7 @@ worker.onmessage = ({ data }) => {
       validateForm()
       destroyPhaseProfile()
       destroySinglePhase()
-      renderMetadata(data.metadata)
+      metadata.render(data.metadata)
 
       // Save data for downloading
       currentPsdData = data
