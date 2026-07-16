@@ -3,6 +3,7 @@ import { Messages, ProgressStage } from "./messages.js"
 import { StatusMessage } from "./ui/status-message.js"
 import { ProgressBar } from "./ui/progress-bar.js"
 import { MetadataRenderer } from "./ui/metadata-renderer.js"
+import { DragAndDropManager } from './ui/drag-and-drop.js'
 import {
   destroyPSD, renderPSD,
   destroyPhaseProfile, renderPhaseProfile,
@@ -44,6 +45,11 @@ const sepInput = document.getElementById("input-separator")
 const xColInput = document.getElementById("input-x-col")
 const yColsInput = document.getElementById("input-y-cols")
 
+// Drag and drop
+const dropOverlay = document.getElementById('dropOverlay')
+const dropSingle = document.getElementById('dropStateSingle')
+const dropMultiple = document.getElementById('dropStateMultiple')
+
 let currentPsdData = null
 let currentProfileData = null
 let currentSinglePhaseData = null
@@ -57,6 +63,7 @@ let isWorkerReady = false
 const status = new StatusMessage(document.getElementById("statusBadge"))
 const progress = new ProgressBar(document.getElementById('progressContainer'))
 const metadata = new MetadataRenderer(document.getElementById("metadataContainer"))
+const drag = new DragAndDropManager()
 
 function updateReadyState () {
   const hasFiles = fileInput.files && fileInput.files.length > 0
@@ -329,4 +336,31 @@ helpModal.addEventListener('click', (e) => {
   if (e.target === helpModal) {
     helpModal.classList.add("hidden")
   }
+})
+
+drag.addEventListener(DragAndDropManager.events.stateChange, ({ detail: { active, isMultiple } }) => {
+  if (active) {
+    dropOverlay.classList.remove('opacity-0')
+    dropOverlay.classList.add('opacity-100')
+
+    if (isMultiple) {
+      dropSingle.classList.add('hidden')
+      dropMultiple.classList.remove('hidden')
+    } else {
+      dropSingle.classList.remove('hidden')
+      dropMultiple.classList.add('hidden')
+    }
+  } else {
+    dropOverlay.classList.add('opacity-0')
+    dropOverlay.classList.remove('opacity-100')
+  }
+})
+
+drag.addEventListener(DragAndDropManager.events.files, async ({ detail: { files }}) => {
+  const dataTransfer = new DataTransfer()
+  for (const file of files) {
+    dataTransfer.items.add(file)
+  }
+  fileInput.files = dataTransfer.files
+  fileInput.dispatchEvent(new Event('change', { bubbles: true }))
 })
