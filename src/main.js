@@ -112,7 +112,8 @@ function validateForm () {
   if (!hasFiles) {
     fileStatus.textContent = "No files selected"
   } else {
-    fileStatus.textContent = `${fileInput.files.length} files ready to process`
+    const plural = fileInput.files.length !== 1
+    fileStatus.textContent = `${fileInput.files.length} file${plural ? 's' : ''} ready to process`
   }
 
 
