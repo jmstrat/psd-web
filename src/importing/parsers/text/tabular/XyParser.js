@@ -128,7 +128,7 @@ export class XyParser extends TextParser {
     const separator = this.options.separator
 
     // Skip leading whitespace
-    while (i < len && (line[i] === ' ' || line[i] === '\t' || line[i] === '\r' || line[i] === '\n')) {
+    while (i < len && (line[i] === ' ' || line[i] === '\t')) {
       i++
     }
 
@@ -139,7 +139,7 @@ export class XyParser extends TextParser {
 
     const startX = i
     if (separator !== undefined) {
-      while (i < len && line[i] !== separator && line[i] !== '\r' && line[i] !== '\n') {
+      while (i < len && line[i] !== separator) {
         i++
       }
     } else {
@@ -177,9 +177,7 @@ export class XyParser extends TextParser {
     // Ignore leading whitespace
     while (i < len && (
       line[i] === ' ' ||
-      line[i] === '\t' ||
-      line[i] === '\r' ||
-      line[i] === '\n'
+      line[i] === '\t'
     )) {
       i++
     }
@@ -201,13 +199,12 @@ export class XyParser extends TextParser {
 
       // Find the next character that is a column separator
       if (separator !== undefined) {
-        while (i < len && line[i] !== separator && line[i] !== '\n' && line[i] !== '\r') {
+        while (i < len && line[i] !== separator) {
           i++
         }
       } else {
         while (
-          i < len && line[i] !== ' ' && line[i] !== '\t' &&
-          line[i] !== ',' && line[i] !== '\n' && line[i] !== '\r'
+          i < len && line[i] !== ' ' && line[i] !== '\t' && line[i] !== ','
         ) {
           i++
         }
@@ -254,7 +251,7 @@ export class XyParser extends TextParser {
       }
 
       // Check for row end or trailing comments
-      if (i >= len || line[i] === '\n' || line[i] === '\r' || line[i] === '#') {
+      if (i >= len || line[i] === '#') {
         break
       }
     }
