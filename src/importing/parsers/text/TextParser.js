@@ -19,6 +19,21 @@ export class TextParser extends BaseParser {
     this.expectedYCount = -1
   }
 
+  validateOptions (options = {}) {
+    const opts = {
+      maxRows: options.maxRows !== undefined ? options.maxRows : Infinity,
+      ...super.validateOptions(options)
+    }
+
+    if (opts.maxRows !== Infinity) {
+      if (!Number.isInteger(opts.maxRows) || opts.maxRows <= 0) {
+        throw new TypeError("maxRows must be a positive integer or Infinity")
+      }
+    }
+
+    return opts
+  }
+
   async parse (file) {
     const fileStream = file.stream()
     const reader = fileStream.pipeThrough(new TextDecoderStream()).getReader()
