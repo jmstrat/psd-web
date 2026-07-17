@@ -83,8 +83,12 @@ async function readSpectraFiles (
     // Read the data
     const { metadata, x, y: yArray } = await parser.parse(file)
 
+    if (x.length === 0) {
+      throw new Error(`No data found: ${file.name}`)
+    }
+
     if (yArray.length !== columnsPerFile) {
-      throw new Error(`Y column mismatch: ${file.name}. All files must provide the same number of datasets.`)
+      throw new Error(`Y column mismatch: ${file.name}. All files must provide the same number of datasets. Found ${yArray.length} | Expected ${columnsPerFile}`)
     }
 
     // Store any metadata found in the file whilst reading it
@@ -113,10 +117,11 @@ async function readSpectraFiles (
       } else {
         // Subsequent files we just validate that the axes match
         if (!compareSignature(xSignature, sig)) {
+          console.error('X-axis mismatch', xSignature, sig)
           throw new Error(`X-axis mismatch: ${file.name}`)
         }
         if (y.length !== spectrumLength) {
-          throw new Error(`Length mismatch: ${file.name}`)
+          throw new Error(`Length mismatch: ${file.name}. Got ${y.length} | expected ${spectrumLength}.`)
         }
       }
 
