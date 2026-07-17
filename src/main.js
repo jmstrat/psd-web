@@ -42,6 +42,7 @@ const runButton = document.getElementById("runButton")
 const xMinInput = document.getElementById("xMin")
 const xMaxInput = document.getElementById("xMax")
 const sepInput = document.getElementById("input-separator")
+const skipRowsInput = document.getElementById("input-skip-rows")
 const xColInput = document.getElementById("input-x-col")
 const yColsInput = document.getElementById("input-y-cols")
 
@@ -276,6 +277,7 @@ parametersForm.addEventListener('submit', (event) => {
     xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber,
 
     separator: sepInput.value.length > 0 ? sepInput.value : undefined,
+    skipRows: Number.isNaN(skipRowsInput.valueAsNumber) ? undefined : skipRowsInput.valueAsNumber,
     // Convert from the 1 based user inputs to the internal 0 based values
     xColumnIndex: Number.isNaN(xColInput.valueAsNumber) ? undefined : xColInput.valueAsNumber - 1,
     yColumnIndices: yColsInput.value.trim().length > 0 ? rangeToIntArray(yColsInput.value, -1) : undefined

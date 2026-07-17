@@ -379,6 +379,13 @@
         placeholder="auto" type="text" maxlength="1" class="form-input truncate text-center py-1">
       </div>
 
+      <label for="input-skip-rows" class="form-label">Skip Rows</label>
+      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+        <p id="skip-rows-help" class="text-[11px] leading-tight text-slate-400">How many header rows to skip</p>
+        <input id="input-skip-rows" aria-describedby="skip-rows-help"
+        placeholder="auto" type="number" step="1" class="form-input truncate text-center py-1">
+      </div>
+
       <label for="input-x-col" class="form-label">x Column Index</label>
       <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
         <p id="x-col-help" class="text-[11px] leading-tight text-slate-400">Which column contains the x axis (1 based)</p>
