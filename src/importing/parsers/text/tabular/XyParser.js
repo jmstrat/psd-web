@@ -250,6 +250,19 @@ export class XyParser extends TextParser {
         }
       }
 
+      // Skip whitespace
+      while (i < len && (line[i] === ' ' || line[i] === '\t')) {
+        i++
+      }
+
+      const targetSep = separator === undefined ? ',' : separator
+      if (
+        (targetSep !== ' ' && targetSep !== '\t') &&
+        (i < len && line[i] === targetSep)
+       ) {
+        i++ // Skip past exactly one separator
+      }
+
       // Check for row end or trailing comments
       if (i >= len || line[i] === '#') {
         break
