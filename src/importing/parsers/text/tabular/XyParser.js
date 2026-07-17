@@ -4,13 +4,18 @@ import { TextParser } from "../TextParser.js"
 // This is a little messy, but we get a fairly significant performance bump by
 // avoiding regex
 export class XyParser extends TextParser {
+  #rowsSkipped = 0
+
   validateOptions (options = {}) {
     const opts = {
       xMin: options.xMin !== undefined ? options.xMin : -Infinity,
       xMax: options.xMax !== undefined ? options.xMax : Infinity,
       xColumnIndex: options.xColumnIndex,
       yColumnIndices: options.yColumnIndices,
+      skipRows: options.skipRows,
       separator: options.separator,
+      decimalSeparator: options.decimalSeparator || '.',
+      thousandsSeparator: options.thousandsSeparator || '',
       invalidNumericStrategy: options.invalidNumericStrategy || "throw",
       ...super.validateOptions(options)
     }
@@ -37,6 +42,13 @@ export class XyParser extends TextParser {
     }
 
     if (
+      typeof opts.skipRows !== 'undefined' &&
+      (!Number.isInteger(opts.skipRows) || opts.skipRows < 0)
+    ) {
+      throw new TypeError("skipRows must be undefined or a non-negative integer")
+    }
+
+    if (
       typeof opts.separator !== 'undefined' &&
       (typeof opts.separator !== 'string' || [...opts.separator].length !== 1)
     ) {
@@ -48,10 +60,68 @@ export class XyParser extends TextParser {
       throw new RangeError('invalidNumericStrategy must be either "throw" or "pad-0"')
     }
 
+    if (opts.decimalSeparator === opts.thousandsSeparator) {
+      throw new Error("Decimal and thousands separators cannot be the same character")
+    }
+
+    opts.hasCustomNumberSeparators = (
+      opts.decimalSeparator !== '.' ||
+      opts.thousandsSeparator !== ''
+    )
+
     return opts
   }
 
+  #parseNumericToken (tokenStr) {
+    tokenStr = tokenStr.trim()
+    const len = tokenStr.length
+    if (len === 0) {
+      return NaN
+    }
+
+    const opts = this.options
+    const decSep = opts.decimalSeparator
+    const thSep = opts.thousandsSeparator
+
+    let needsSanitation = false
+    if (opts.hasCustomNumberSeparators) {
+      for (let j = 0; j < len; j++) {
+        const char = tokenStr[j]
+        if (char === decSep || (thSep !== '' && char === thSep)) {
+          needsSanitation = true
+          break
+        }
+      }
+    }
+
+    if (!needsSanitation) {
+      return Number(tokenStr)
+    }
+
+    let constructedStr = ''
+    for (let j = 0; j < len; j++) {
+      const char = tokenStr[j]
+      if (char === decSep) {
+        constructedStr += '.'
+      } else if (thSep !== '' && char === thSep) {
+        continue
+      } else {
+        constructedStr += char
+      }
+    }
+
+    return Number(constructedStr)
+  }
+
   parseHeaderLine (line) {
+    if (this.options.skipRows !== undefined) {
+      if (this.#rowsSkipped < this.options.skipRows) {
+        this.#rowsSkipped++
+        return true
+      }
+      return false
+    }
+
     const len = line.length
     let i = 0
 
@@ -79,7 +149,7 @@ export class XyParser extends TextParser {
     }
 
     const token = line.substring(startX, i)
-    const x = Number(token)
+    const x = this.#parseNumericToken(token)
 
     // If the first column is not a number, we assume it is a header
     if (isNaN(x)) {
@@ -105,7 +175,12 @@ export class XyParser extends TextParser {
     const targetYIdxs = opts.yColumnIndices
 
     // Ignore leading whitespace
-    while (i < len && (line[i] === ' ' || line[i] === '\t' || line[i] === '\r' || line[i] === '\n')) {
+    while (i < len && (
+      line[i] === ' ' ||
+      line[i] === '\t' ||
+      line[i] === '\r' ||
+      line[i] === '\n'
+    )) {
       i++
     }
 
@@ -130,43 +205,46 @@ export class XyParser extends TextParser {
           i++
         }
       } else {
-        while (i < len && line[i] !== ' ' && line[i] !== '\t' && line[i] !== ',' && line[i] !== '\n' && line[i] !== '\r') {
+        while (
+          i < len && line[i] !== ' ' && line[i] !== '\t' &&
+          line[i] !== ',' && line[i] !== '\n' && line[i] !== '\r'
+        ) {
           i++
         }
       }
 
       // We have the text representation of a data cell now, we need to check if we need to
       // store it and convert to a number
-      if (i !== startToken) {
-        // Evaluate token if it matches our targeted layout layout positions
-        if (currentColumnIdx === targetXIdx) {
-          x = Number(line.substring(startToken, i))
-        } else {
-          // If explicit Y indexes are passed, check inclusion. Otherwise, capture everything past X
-          const isTargetY = targetYIdxs !== undefined
-            ? targetYIdxs.includes(currentColumnIdx)
-            : currentColumnIdx > targetXIdx
+      const token = line.substring(startToken, i)
+      // Evaluate token if it matches our targeted layout layout positions
+      if (currentColumnIdx === targetXIdx) {
+        x = this.#parseNumericToken(token)
+      } else {
+        // If explicit Y indexes are passed, check inclusion. Otherwise, capture everything past X
+        const isTargetY = targetYIdxs !== undefined
+          ? targetYIdxs.includes(currentColumnIdx)
+          : currentColumnIdx > targetXIdx
 
-          if (isTargetY) {
-            const yVal = Number(line.substring(startToken, i))
+        if (isTargetY) {
+          const yVal = this.#parseNumericToken(token)
 
-            if (isNaN(yVal) || !isFinite(yVal)) {
-              if (opts.invalidNumericStrategy === "throw") {
-                throw new Error(`Invalid numerical value encountered: "${line.substring(startToken, i)}"`)
-              }
-              outResult.yValues.push(0)
-            } else {
-              outResult.yValues.push(yVal)
+          if (isNaN(yVal) || !isFinite(yVal)) {
+            if (opts.invalidNumericStrategy === "throw") {
+              throw new Error(`Invalid numerical value encountered: "${token}"`)
             }
-            yCount++
+            outResult.yValues.push(0)
+          } else {
+            outResult.yValues.push(yVal)
           }
+          yCount++
         }
-        currentColumnIdx++
       }
+      currentColumnIdx++
+
 
       // Skip column separators
       if (separator !== undefined) {
-        while (i < len && line[i] === separator) {
+        if (i < len && line[i] === separator) {
           i++
         }
       } else {
