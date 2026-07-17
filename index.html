@@ -27,9 +27,12 @@
 
         <div class="flex items-center gap-4">
           <div id="statusBadge"
-            class="rounded-full bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700">
-            <span id="status">Ready</span>
+            class="rounded-2xl md:rounded-full max-w-md bg-emerald-100 px-4 py-2 text-sm font-medium text-emerald-700 transition-all duration-200 ease-in-out">
+            <span id="status" class="block break-words line-clamp-3 hover:line-clamp-none">
+              Ready
+            </span>
           </div>
+
 
           <div class="inline-flex h-9 items-center rounded-lg border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
             <button id="downloadButton" disabled type="button"
