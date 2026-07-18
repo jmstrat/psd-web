@@ -245,6 +245,10 @@ class CachedFileReader {
     return this.getData().dataType
   }
 
+  get metadata () {
+    return this.getData().metadata
+  }
+
   getDataset (index) {
     const { averagedPeriod, spectrumLength } = this.getData()
     return CycleMerger.extractDataset(averagedPeriod, spectrumLength, index)

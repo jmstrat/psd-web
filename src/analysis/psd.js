@@ -31,8 +31,6 @@ export function runPSD (
   }
 
   const {
-    metadata,
-    dataType,
     x,
     spectraPerCycle,
     spectrumLength
@@ -96,8 +94,6 @@ export function runPSD (
   console.timeEnd("Result parsing")
 
   return {
-    metadata,
-    dataType,
     xAxisData: new Float64Array(xBufferToTransfer),
     datasets,
     transferList
@@ -180,7 +176,7 @@ export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner=null
   }
 
   console.time("Single Phase PSD Calculation")
-  const { spectraPerCycle, spectrumLength, x, dataType } = SharedFileReader.getData()
+  const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
 
   const managedRunner = !runner
   if (managedRunner) {
@@ -216,7 +212,6 @@ export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner=null
   console.timeEnd("Single Phase PSD Calculation")
 
   return({
-    dataType,
     xAxisData: new Float64Array(xBufferToTransfer),
     yAxisData: singleSpectrum,
     transferList

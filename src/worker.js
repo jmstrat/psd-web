@@ -25,10 +25,15 @@ onmessage = async ({ data }) => {
           type: Messages.PROGRESS,
           stage: ProgressStage.CALCULATING
         })
+
         const { transferList, ...result } = runPSD(data.processingOptions)
+
+        const { dataType, metadata } = SharedFileReader
         postMessage({
           type: Messages.PSD_RESULT,
-          ...result
+          ...result,
+          dataType,
+          metadata
         }, transferList)
 
         postMessage({
@@ -89,12 +94,15 @@ onmessage = async ({ data }) => {
           stage: ProgressStage.CALCULATING
         })
 
+        const dataType = SharedFileReader.dataType
+
         const sharedRunner = allocateRunner()
         const { transferList, maxPhase, ...result } = getProfile(data, sharedRunner)
         postMessage({
           type: Messages.PHASE_PROFILE_RESULT,
           maxPhase,
-          ...result
+          ...result,
+          dataType
         }, transferList)
 
         const args = {
@@ -108,7 +116,8 @@ onmessage = async ({ data }) => {
         postMessage({
           type: Messages.SINGLE_PHASE_RESULT,
           targetPhase: maxPhase,
-          ...result2
+          ...result2,
+          dataType
         }, transferList2)
 
         postMessage({
@@ -131,11 +140,14 @@ onmessage = async ({ data }) => {
           stage: ProgressStage.CALCULATING
         })
 
+        const dataType = SharedFileReader.dataType
+
         const { transferList, ...result } = getSinglePhase(data)
         postMessage({
           type: Messages.SINGLE_PHASE_RESULT,
           ...result,
-          targetPhase: data.targetPhase
+          targetPhase: data.targetPhase,
+          dataType
         }, transferList)
         postMessage({
           type: Messages.PROGRESS,
