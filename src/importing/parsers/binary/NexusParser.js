@@ -641,6 +641,78 @@ export class NexusParser extends BaseParser {
     return value
   }
 
+  #utf8FromAsciiBytes (str) {
+    const bytes = new Uint8Array(str.length)
+
+    // Windows-1252 characters from 0x80 to 0x9F in order
+    const WIN1252_EXTENSION_CHARS = "€ ‚ƒ„…†‡ˆ‰Š‹Œ Ž  ‘’“”•–—˜™š›œ žŸ"
+
+    const MAX_LATIN1_CHAR_CODE = 255
+    const WIN1252_BYTE_OFFSET = 0x80
+    const ASCII_FALLBACK_QUESTION_MARK = 0x3F
+
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i)
+
+      if (code <= MAX_LATIN1_CHAR_CODE) {
+        // Standard Latin-1/ASCII maps 1:1 to raw bytes
+        bytes[i] = code
+      } else {
+        const index = WIN1252_EXTENSION_CHARS.indexOf(str[i])
+
+        // Reconstruct the true byte value using the offset, fallback to '?' if unmappable
+        bytes[i] = index !== -1
+          ? WIN1252_BYTE_OFFSET + index
+          : ASCII_FALLBACK_QUESTION_MARK
+      }
+    }
+
+    return new TextDecoder('utf-8').decode(bytes)
+  }
+
+  #getAttrValue (node, attrName) {
+    if (!node || !node.attrs) {
+      return null
+    }
+
+    const attr = node.attrs[attrName]
+    if (!attr) {
+      return null
+    }
+
+    let value = attr.value
+
+    // cset: 0 is ASCII
+    // dtype: A or Ax denotes ASCII / Fortran string format
+    // Unfortunately, it is common for tools to write UTF-8 encoded text into
+    // HDF5 files without updating the metadata character set from its default (ASCII).
+    // We therefore assume that any non-ASCII characters found in these containers
+    // are actually UTF-8 bytes that were incorrectly decoded as individual characters.
+    // This creates a small risk of corruption for files that strictly follow the
+    // ASCII/Latin-1 standard AND use high-range printing characters, but this is
+    // vastly less likely than encountering unflagged UTF-8. If the metadata explicitly
+    // sets cset to UTF-8 (cset: 1), we trust it and do not process it further.
+    const isASCII = attr.metadata?.cset === 0 || attr.dtype?.startsWith('A')
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        return null
+      }
+
+      if (isASCII) {
+        value = value.map(item => (typeof item === 'string' ? this.#utf8FromAsciiBytes(item) : item))
+      }
+
+      return value.length === 1 ? value[0] : value
+    }
+
+    if (isASCII && typeof value === 'string') {
+      return this.#utf8FromAsciiBytes(value)
+    }
+
+    return value
+  }
+
   #joinPath (...args) {
     const segments = []
     for (let i = 0; i < args.length; i++) {
