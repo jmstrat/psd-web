@@ -1,5 +1,5 @@
 import { createBaseChart } from "./base-chart.js"
-import { destroyChart } from './util.js'
+import { destroyChart, axisLabel } from './util.js'
 
 const SinglePhaseChartCtx = document.getElementById("chartSinglePhase").getContext("2d")
 let SinglePhaseChart = null
@@ -38,10 +38,10 @@ export function renderSinglePhase ({ xAxisData, yAxisData, targetPhase, dataType
           scales: {
             x: {
               labels: xAxisData,
-              title: { display: true, text: dataType?.xlab }
+              title: { display: true, text: axisLabel(dataType.x) }
             },
             y: {
-              title: { display: true, text: dataType?.ylab }
+              title: { display: true, text: axisLabel(dataType.y) }
             }
           }
         }
@@ -51,8 +51,8 @@ export function renderSinglePhase ({ xAxisData, yAxisData, targetPhase, dataType
     SinglePhaseChart.data.datasets = [dataset]
     SinglePhaseChart.options.plugins.title.text = titleText
     SinglePhaseChart.options.scales.x.labels = xAxisData
-    SinglePhaseChart.options.scales.x.title.text = dataType?.xlab
-    SinglePhaseChart.options.scales.y.title.text = dataType?.ylab
+    SinglePhaseChart.options.scales.x.title.text = axisLabel(dataType.x)
+    SinglePhaseChart.options.scales.y.title.text = axisLabel(dataType.y)
     SinglePhaseChart.update("none")
   }
 }

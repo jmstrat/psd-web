@@ -1,6 +1,6 @@
 import { getColour, palettes } from "./colourmap.js"
 import { createBaseChart } from "./base-chart.js"
-import { destroyChart } from './util.js'
+import { destroyChart, axisLabel } from './util.js'
 import { gradientLegend } from './gradient-legend.js'
 
 const PSDChartCtx = document.getElementById("chartPSD").getContext("2d")
@@ -93,11 +93,11 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
           },
           scales: {
             x: {
-              title: { display: true, text: dataType?.xlab },
+              title: { display: true, text: axisLabel(dataType.x) },
               labels: xAxisData
             },
             y: {
-              title: { display: true, text: dataType?.ylab }
+              title: { display: true, text: axisLabel(dataType.y) }
             }
           }
         },
@@ -108,8 +108,8 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
   } else {
     PSDChart.data.datasets = styledDatasets
     PSDChart.options.scales.x.labels = xAxisData
-    PSDChart.options.scales.x.title.text = dataType?.xlab
-    PSDChart.options.scales.y.title.text = dataType?.ylab
+    PSDChart.options.scales.x.title.text = axisLabel(dataType.x)
+    PSDChart.options.scales.y.title.text = axisLabel(dataType.y)
     PSDChart.update("none")
   }
 }

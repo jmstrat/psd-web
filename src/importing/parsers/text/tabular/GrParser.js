@@ -4,8 +4,8 @@ import { XyParser } from "./XyParser.js"
 export class GrParser extends XyParser {
   dataType = {
     id: "gr",
-    xlab: "r / Å",
-    ylab: "G(r)"
+    x: { label: "r", unit: "Å" },
+    y: { label: "G(r)", unit: null }
   }
 
   constructor (...args) {

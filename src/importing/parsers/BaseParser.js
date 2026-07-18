@@ -7,8 +7,8 @@ import { BufferPool } from "../util.js"
 export class BaseParser {
   dataType = {
     id: "unknown",
-    xlab: "x / unknown",
-    ylab: "intensity / unknown"
+    x: { label: "x", unit: null },
+    y: { label: "intensity", unit: null }
   }
 
   constructor (options = {}) {

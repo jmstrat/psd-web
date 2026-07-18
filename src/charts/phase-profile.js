@@ -4,7 +4,7 @@ import { destroyChart } from './util.js'
 const PhaseProfileProfileCtx = document.getElementById("chartProfile").getContext("2d")
 let PhaseProfileChart = null
 
-export function renderPhaseProfile ({ intensities, phaseAngles, selectedX }, onclick) {
+export function renderPhaseProfile ({ intensities, phaseAngles, selectedX, dataType }, onclick) {
   let minVal = Infinity
   let maxVal = -Infinity
   let minIdx = 0
@@ -63,7 +63,12 @@ export function renderPhaseProfile ({ intensities, phaseAngles, selectedX }, onc
     clip: false
   }
 
-  const titleText = `r = ${selectedX} Å`
+  const titleVal = Number(selectedX.toPrecision(3))
+
+  let titleText = `${dataType.x.label} = ${titleVal}`
+  if (dataType.x.unit) {
+    titleText += ` ${dataType.x.unit}`
+  }
   const subtitleText = `Min: ${phaseAngles[minIdx]}° | Max: ${phaseAngles[maxIdx]}°`
 
   if (!PhaseProfileChart) {

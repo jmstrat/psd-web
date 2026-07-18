@@ -193,12 +193,8 @@ export class NexusParser extends BaseParser {
 
     return {
       id: this.file.attrs["program_name"]?.value || "nexus_file",
-      xlab: this.#getLabel(xDataset, xName, "x / unknown"),
-      ylab: this.#getLabel(
-        primaryDataset,
-        primaryDatasetKey,
-        "intensity / unknown"
-      )
+      x: this.#getLabel(xDataset, xName, "x"),
+      y: this.#getLabel(primaryDataset, primaryDatasetKey, "intensity")
     }
   }
 
@@ -601,44 +597,20 @@ export class NexusParser extends BaseParser {
 
   #getLabel (dataset, fallbackName, absoluteFallback) {
     if (!dataset) {
-      return absoluteFallback
+      return { label: absoluteFallback, unit: null }
     }
 
+    const units = this.#getAttrValue(dataset, "units") || null
     const longName = this.#getAttrValue(dataset, "long_name")
+
     if (longName) {
-      return longName
+      return { label: String(longName), unit: units }
     }
 
-    const units = this.#getAttrValue(dataset, "units")
-    if (units) {
-      return `${fallbackName} (${units})`
+    return {
+      label: fallbackName || absoluteFallback,
+      unit: units
     }
-
-    return fallbackName || absoluteFallback
-  }
-
-  #getAttrValue (node, attrName) {
-    if (!node || !node.attrs) {
-      return null
-    }
-
-    const attr = node.attrs[attrName]
-    if (!attr) {
-      return null
-    }
-
-    const value = attr.value
-    if (Array.isArray(value)) {
-      if (value.length === 0) {
-        return null
-      }
-
-      if (value.length === 1) {
-        return value[0]
-      }
-      return value
-    }
-    return value
   }
 
   #utf8FromAsciiBytes (str) {

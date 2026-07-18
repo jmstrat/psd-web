@@ -1,5 +1,6 @@
 import { createCSVStream } from "./csv.js"
 import { Zip, ZipPassThrough } from 'fflate'
+import { axisLabel } from '@/charts/util.js'
 
 const defaultOptions = {
   multicolumn: 'combined',
@@ -39,15 +40,15 @@ function getArchiveMetadataStream ({
 }
 
 function getMultiColumnStream (data, separator) {
-  const xlab = data.dataType?.xlab ?? "x_value"
+  const xlab = axisLabel(data.dataType.x)
   const headings = [xlab, ...data.datasets.map(d => d.label)]
   const yValueArrays = data.datasets.map(d => d.data)
   return createCSVStream(headings, data.xAxisData, yValueArrays, separator)
 }
 
 function getMultiColumnSplitStreams (data, separator) {
-  const xlab = data.dataType?.xlab ?? "x_value"
-  const ylab = data.dataType?.ylab ?? "y_value"
+  const xlab = axisLabel(data.dataType.x)
+  const ylab = axisLabel(data.dataType.y)
   const headings = [xlab, ylab]
   const streams = {}
   for (const d of data.datasets) {
@@ -168,8 +169,8 @@ function getArchiveFileStreams (
   }
 
   if (singlePhaseData) {
-    const xlab = singlePhaseData.dataType?.xlab ?? "x_value"
-    const ylab = singlePhaseData.dataType?.ylab ?? "intensity"
+    const xlab = axisLabel(singlePhaseData.dataType.x)
+    const ylab = axisLabel(singlePhaseData.dataType.y)
     filesToArchive.push({
       name: `selected_phase.${ext}`,
       stream: createCSVStream(

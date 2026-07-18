@@ -33,6 +33,14 @@ export const verticalHoverLine = Object.freeze({
   }
 })
 
+export function axisLabel ({ label, unit }) {
+  if (unit) {
+    return `${label} / ${unit}`
+  } else {
+    return label
+  }
+}
+
 export function destroyChart (chart, ctx, message) {
   if (chart) {
     chart.destroy()
