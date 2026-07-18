@@ -8,9 +8,9 @@ const metadataDiscoveryPaths = [
   "/entry/user"
 ]
 
-// TODO we should allow overriding the x axis
 // dataPath: Explicitly targets a specific HDF5 group path for data extraction (default tries to automatically find the main data)
 // primaryDataset: Explicitly defines the name of the main dataset containing the intensity data (default uses the group's default signal attribute)
+// xAxisName: Override the x axis that is used
 // xMin / xMax: Limits the X range that is read
 // slice: Configures multidimensional cuts by dimension or by axis name (see below)
 
@@ -62,6 +62,7 @@ export class NexusParser extends BaseParser {
     return {
       dataPath: options.dataPath || null,
       primaryDataset: options.primaryDataset || null,
+      xAxisName: options.xAxisName || null,
       slice: options.slice || {},
       xMin: options.xMin !== undefined ? options.xMin : -Infinity,
       xMax: options.xMax !== undefined ? options.xMax : Infinity,
@@ -205,7 +206,7 @@ export class NexusParser extends BaseParser {
   #readXAxis (data) {
     const { path, axes, primaryDataset } = data
     const xAxisIndex = this.#findXAxisDimension(axes, primaryDataset)
-    const xName = axes[xAxisIndex]
+    const xName = this.options.xAxisName || axes[xAxisIndex]
     const xDataset = this.file.get(`${path}/${xName}`)
 
     if (!xDataset) {
@@ -219,15 +220,14 @@ export class NexusParser extends BaseParser {
     }
 
     const baseSelection = Array.from({ length: shape.length }, () => [])
-    const targetDimension = this.#findXAxisDimension(axes, primaryDataset)
-    const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, targetDimension)
+    const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, xAxisIndex)
     data.bounds = bounds
 
     return this.#readDatasetVector(xDataset, axes, baseSelection, bounds)
   }
 
   #readYDatasets (data) {
-    const { primaryDatasetKey, primaryDataset, axes, bounds } = data
+    const { primaryDataset, axes, bounds } = data
     const yOutputs = []
 
     const rawSlice = this.#resolveSliceForDataset(primaryDataset, axes)
@@ -571,18 +571,32 @@ export class NexusParser extends BaseParser {
       return 0
     }
 
-    if (!axes || axes.length === 0) {
-      return dataset.shape.length - 1
+    if (this.options.xAxisName) {
+      if (Array.isArray(axes)) {
+        const matchedIndex = axes.findIndex(axis => axis === this.options.xAxisName)
+        if (matchedIndex !== -1) {
+          return matchedIndex
+        }
+      }
+
+      throw new Error(`The X-axis "${this.options.xAxisName}" could not be found in the axes metadata.`)
     }
 
-    for (let i = dataset.shape.length - 1; i >= 0; i--) {
+    const shape = dataset.shape || []
+
+    if (!axes || axes.length === 0) {
+      return shape.length - 1
+    }
+
+    for (let i = shape.length - 1; i >= 0; i--) {
       if (axes[i] && axes[i] !== ".") {
         return i
       }
     }
 
-    return dataset.shape.length - 1
+    return shape.length - 1
   }
+
 
   // ---- Metadata ----
 
