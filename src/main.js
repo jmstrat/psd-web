@@ -51,7 +51,6 @@ const yColsInput = document.getElementById("input-y-cols")
 
 const dataPathInput = document.getElementById("input-nexus-path")
 const datasetInput = document.getElementById("input-nexus-dataset")
-const squeezeInput = document.getElementById("input-nexus-squeeze")
 
 // Drag and drop
 const dropOverlay = document.getElementById('dropOverlay')
@@ -294,8 +293,7 @@ parametersForm.addEventListener('submit', (event) => {
     // Nexus
     dataPath: dataPathInput.value.length > 0 ? dataPathInput.value : undefined,
     primaryDataset: datasetInput.value.length > 0 ? datasetInput.value : undefined,
-    slice: getSliceConfiguration(),
-    squeeze: squeezeInput.checked
+    slice: getSliceConfiguration()
   }
 
   processingOptions = {

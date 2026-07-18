@@ -11,7 +11,6 @@ const metadataDiscoveryPaths = [
 // TODO we should allow overriding the x axis
 // dataPath: Explicitly targets a specific HDF5 group path for data extraction (default tries to automatically find the main data)
 // primaryDataset: Explicitly defines the name of the main dataset containing the intensity data (default uses the group's default signal attribute)
-// squeeze: Eliminates dimensions of size one from extracted data arrays
 // xMin / xMax: Limits the X range that is read
 // slice: Configures multidimensional cuts by dimension or by axis name (see below)
 
@@ -39,10 +38,6 @@ export class NexusParser extends BaseParser {
       throw new Error("slice must be an object")
     }
 
-    if (options.squeeze !== undefined && typeof options.squeeze !== "boolean") {
-      throw new Error("squeeze must be a boolean")
-    }
-
     if (options.slice !== undefined) {
       const { slice } = options
 
@@ -68,7 +63,6 @@ export class NexusParser extends BaseParser {
       dataPath: options.dataPath || null,
       primaryDataset: options.primaryDataset || null,
       slice: options.slice || {},
-      squeeze: options.squeeze ?? true,
       xMin: options.xMin !== undefined ? options.xMin : -Infinity,
       xMax: options.xMax !== undefined ? options.xMax : Infinity,
       ...super.validateOptions(options)
@@ -229,7 +223,7 @@ export class NexusParser extends BaseParser {
     const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, targetDimension)
     data.bounds = bounds
 
-    return this.#readDatasetVector(xName, xDataset, axes, baseSelection, bounds)
+    return this.#readDatasetVector(xDataset, axes, baseSelection, bounds)
   }
 
   #readYDatasets (data) {
@@ -244,8 +238,7 @@ export class NexusParser extends BaseParser {
 
     for (let i = 0; i < selectionsGrid.length; i++) {
       const selection = selectionsGrid[i]
-      const vectorName = `${primaryDatasetKey}_slice_${i}`
-      const yVector = this.#readDatasetVector(vectorName, primaryDataset, axes, selection, bounds)
+      const yVector = this.#readDatasetVector(primaryDataset, axes, selection, bounds)
 
       yOutputs.push(yVector)
     }
@@ -363,7 +356,7 @@ export class NexusParser extends BaseParser {
 
   // ---- Data slicing ----
 
-  #readDatasetVector (name, dataset, axes, selection, bounds = null) {
+  #readDatasetVector (dataset, axes, selection, bounds = null) {
     if (!dataset) {
       return new Float64Array(0)
     }
@@ -373,51 +366,20 @@ export class NexusParser extends BaseParser {
       return Float64Array.of(Number(dataset.value))
     }
 
-    const targetDimension = this.#findXAxisDimension(axes, dataset)
-    let activeDimensions = 0
+    const xDimension = this.#findXAxisDimension(axes, dataset)
 
     // Clone to avoid mutation
     selection = selection.map(coord => [...coord])
 
-    for (let i = 0; i < shape.length; i++) {
-      let dimensionLength = 1
-
-      if (i === targetDimension) {
-        if (bounds) {
-          if (bounds.countLength === 0) {
-            return new Float64Array(0)
-          }
-          const startPos = bounds.startOffset
-          const endPos = Math.min(bounds.startOffset + bounds.countLength, shape[targetDimension])
-          selection[targetDimension] = [startPos, endPos]
-          dimensionLength = endPos - startPos
-        } else {
-          selection[targetDimension] = [0, shape[targetDimension]]
-          dimensionLength = shape[targetDimension]
-        }
-      } else if (Array.isArray(selection[i])) {
-        const axisSlice = selection[i]
-        dimensionLength = axisSlice.length === 0 ? shape[i] : axisSlice[1] - axisSlice[0]
+    if (bounds) {
+      if (bounds.countLength === 0) {
+        return new Float64Array(0)
       }
-
-      // Count a dimension as active only if it contains more than 1 value
-      // (squeeze)
-      if (dimensionLength > 1) {
-        activeDimensions++
-      }
-    }
-
-    // h5wasm always returns a flat array, so squeeze is effectively a toggle
-    // about how strict we are about dataset dimensions. If true (default) we
-    // ignore dimensions of size 1, but false may cause an error to be thrown
-    if (!this.options.squeeze) {
-      activeDimensions = shape.length
-    }
-
-    if (activeDimensions > 1) {
-      throw new Error(
-        `Dataset "${name}" cannot be parsed into a 1D vector. It has ${activeDimensions} active dimensions. Use "slice" to isolate a single axis.`
-      )
+      const startPos = bounds.startOffset
+      const endPos = Math.min(bounds.startOffset + bounds.countLength, shape[xDimension])
+      selection[xDimension] = [startPos, endPos]
+    } else {
+      selection[xDimension] = [0, shape[xDimension]]
     }
 
     const values = dataset.slice(selection)
