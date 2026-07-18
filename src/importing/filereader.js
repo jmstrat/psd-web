@@ -66,6 +66,10 @@ async function readSpectraFiles (
   const usableSpectraLength = Math.floor(totalSpectra / spectraPerCycle) * spectraPerCycle
   const usableFileLength = Math.ceil(usableSpectraLength / columnsPerFile)
 
+  console.log('Spectra per file:', columnsPerFile)
+  console.log('Total expected spectra', totalSpectra)
+  console.log('Usable spectra expected', usableSpectraLength)
+
   let merger = null
   let xAxis = null
   let xSignature = null
