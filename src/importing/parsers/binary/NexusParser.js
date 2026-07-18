@@ -548,10 +548,14 @@ export class NexusParser extends BaseParser {
     }
 
     for (const path of metadataDiscoveryPaths) {
-      const node = this.file.get(path)
+      try {
+        const node = this.file.get(path)
 
-      if (node) {
-        this.#extractMetadataRecursive(node, path.replace(/^\//, ""))
+        if (node) {
+          this.#extractMetadataRecursive(node, path.replace(/^\//, ""))
+        }
+      } catch (err) {
+        console.warn(`Failed to extract metadata for path ${path}`)
       }
     }
   }
