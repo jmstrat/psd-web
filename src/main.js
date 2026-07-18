@@ -4,6 +4,8 @@ import { StatusMessage } from "./ui/status-message.js"
 import { ProgressBar } from "./ui/progress-bar.js"
 import { MetadataRenderer } from "./ui/metadata-renderer.js"
 import { DragAndDropManager } from './ui/drag-and-drop.js'
+import "./ui/tab-panel.js"
+import { getSliceConfiguration } from './ui/data-slice-input.js'
 import {
   destroyPSD, renderPSD,
   destroyPhaseProfile, renderPhaseProfile,
@@ -41,10 +43,15 @@ const runButton = document.getElementById("runButton")
 // Input Settings
 const xMinInput = document.getElementById("xMin")
 const xMaxInput = document.getElementById("xMax")
+
 const sepInput = document.getElementById("input-separator")
 const skipRowsInput = document.getElementById("input-skip-rows")
 const xColInput = document.getElementById("input-x-col")
 const yColsInput = document.getElementById("input-y-cols")
+
+const dataPathInput = document.getElementById("input-nexus-path")
+const datasetInput = document.getElementById("input-nexus-dataset")
+const squeezeInput = document.getElementById("input-nexus-squeeze")
 
 // Drag and drop
 const dropOverlay = document.getElementById('dropOverlay')
@@ -273,14 +280,22 @@ parametersForm.addEventListener('submit', (event) => {
   }
 
   parserOptions = {
+    // General
     xMin: Number.isNaN(xMinInput.valueAsNumber) ? -Infinity : xMinInput.valueAsNumber,
     xMax: Number.isNaN(xMaxInput.valueAsNumber) ? Infinity : xMaxInput.valueAsNumber,
 
+    // Plain text
     separator: sepInput.value.length > 0 ? sepInput.value : undefined,
     skipRows: Number.isNaN(skipRowsInput.valueAsNumber) ? undefined : skipRowsInput.valueAsNumber,
     // Convert from the 1 based user inputs to the internal 0 based values
     xColumnIndex: Number.isNaN(xColInput.valueAsNumber) ? undefined : xColInput.valueAsNumber - 1,
-    yColumnIndices: yColsInput.value.trim().length > 0 ? rangeToIntArray(yColsInput.value, -1) : undefined
+    yColumnIndices: yColsInput.value.trim().length > 0 ? rangeToIntArray(yColsInput.value, -1) : undefined,
+
+    // Nexus
+    dataPath: dataPathInput.value.length > 0 ? dataPathInput.value : undefined,
+    primaryDataset: datasetInput.value.length > 0 ? datasetInput.value : undefined,
+    slice: getSliceConfiguration(),
+    squeeze: squeezeInput.checked
   }
 
   processingOptions = {

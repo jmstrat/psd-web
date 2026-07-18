@@ -347,10 +347,9 @@
     </form>
   </div>
 
-
   <div id="importSettingsPopover" popover
     style="position-anchor: --import-settings-trigger; top: anchor(bottom); left: anchor(center);"
-    class="m-0 mt-1.5 w-64 rounded-lg border border-slate-200 bg-white p-4 shadow-xl backdrop:bg-transparent">
+    class="m-0 mt-1.5 w-80 rounded-lg border border-slate-200 bg-white p-4 shadow-xl backdrop:bg-transparent">
     <form class="space-y-4">
       <h2 class="panel-title mb-4">
         Import Settings
@@ -368,38 +367,126 @@
         </div>
       </div>
 
-      <div class="pt-2 border-t border-slate-200 space-y-1">
-        <h3 class="text-xs font-light text-slate-700 tracking-wider">Parser Specific Settings</h3>
-        <p class="text-[11px] leading-snug text-slate-400">
-          In general these settings will only apply if the file type is not recognised.
-        </p>
+      <!-- Tab Navigation Header -->
+      <div class="pt-2 border-t border-slate-200">
+        <div role="tablist" aria-label="Parser Specific Settings" class="flex border-b border-slate-200 text-xs font-medium mb-3">
+          <button type="button" role="tab" aria-selected="true" aria-controls="plain-text-panel" id="tab-plain-text"
+            class="tab-btn px-3 py-1.5 border-b-2 border-blue-600 text-blue-600 focus:outline-none">
+            Plain Text
+          </button>
+          <button type="button" role="tab" aria-selected="false" aria-controls="nexus-panel" id="tab-nexus"
+            class="tab-btn px-3 py-1.5 border-b-2 border-transparent text-slate-500 hover:text-slate-700 focus:outline-none">
+            Nexus
+          </button>
+        </div>
       </div>
 
-      <label for="input-separator" class="form-label">Column Separator</label>
-      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
-        <p id="separator-help" class="text-[11px] leading-tight text-slate-400">Defaults to whitespace or comma</p>
-        <input id="input-separator" aria-describedby="separator-help"
-        placeholder="auto" type="text" maxlength="1" class="form-input truncate text-center py-1">
+      <!-- Tab 1: Plain Text -->
+      <div id="plain-text-panel" role="tabpanel" aria-labelledby="tab-plain-text" class="space-y-4">
+        <div>
+          <label for="input-separator" class="form-label mb-1 block">Column Separator</label>
+          <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+            <p id="separator-help" class="text-[11px] leading-tight text-slate-400">Defaults to whitespace or comma</p>
+            <input id="input-separator" aria-describedby="separator-help"
+            placeholder="auto" type="text" maxlength="1" class="form-input truncate text-center py-1">
+          </div>
+        </div>
+
+        <div>
+          <label for="input-skip-rows" class="form-label mb-1 block">Skip Rows</label>
+          <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+            <p id="skip-rows-help" class="text-[11px] leading-tight text-slate-400">How many header rows to skip</p>
+            <input id="input-skip-rows" aria-describedby="skip-rows-help"
+            placeholder="auto" type="number" step="1" class="form-input truncate text-center py-1">
+          </div>
+        </div>
+
+        <div>
+          <label for="input-x-col" class="form-label mb-1 block">x Column Index</label>
+          <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
+            <p id="x-col-help" class="text-[11px] leading-tight text-slate-400">Which column contains the x axis (1 based)</p>
+            <input id="input-x-col" aria-describedby="x-col-help"
+            placeholder="1" type="number" step="1" class="form-input truncate text-center py-1">
+          </div>
+        </div>
+
+        <div>
+          <label for="input-y-cols" class="form-label mb-1 block">y Column Indices</label>
+          <p id="y-cols-help" class="text-[11px] leading-tight text-slate-400 mb-1">Which column(s) contain y axis data (1 based). Use commas to separate values and dashes (-) to specify ranges.</p>
+          <input id="input-y-cols" aria-describedby="y-cols-help"
+          placeholder="2-end" type="text" class="form-input truncate text-center py-1 w-full">
+        </div>
       </div>
 
-      <label for="input-skip-rows" class="form-label">Skip Rows</label>
-      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
-        <p id="skip-rows-help" class="text-[11px] leading-tight text-slate-400">How many header rows to skip</p>
-        <input id="input-skip-rows" aria-describedby="skip-rows-help"
-        placeholder="auto" type="number" step="1" class="form-input truncate text-center py-1">
+      <!-- Tab 2: Nexus -->
+      <div id="nexus-panel" role="tabpanel" aria-labelledby="tab-nexus" class="hidden space-y-4 pt-1">
+
+        <!-- Data Path -->
+        <div>
+          <label for="input-nexus-path" class="form-label mb-1 block">Data Path</label>
+          <input id="input-nexus-path" placeholder="default" type="text" class="form-input w-full py-1 text-xs">
+          <p class="text-[10px] leading-tight text-slate-400 mt-1">For example /processed/result</p>
+        </div>
+
+        <!-- Primary Dataset -->
+        <div>
+          <label for="input-nexus-dataset" class="form-label mb-1 block">Primary Dataset</label>
+          <input id="input-nexus-dataset" placeholder="default" type="text" class="form-input w-full py-1 text-xs">
+          <p class="text-[10px] leading-tight text-slate-400 mt-1">Name of the target dataset (y values)</p>
+        </div>
+
+        <!-- Slice Configuration Section -->
+        <div class="space-y-3">
+          <div>
+            <label class="form-label font-medium text-slate-700 block mb-1.5">Slice Configuration</label>
+
+            <!-- Mode Selection  -->
+            <div class="flex bg-slate-100 p-0.5 rounded-md text-[11px] font-medium mb-3">
+              <button type="button" id="btn-mode-array" class="flex-1 py-1 rounded bg-white text-slate-800 shadow-sm transition-all focus:outline-none">
+                By Dimensions
+              </button>
+              <button type="button" id="btn-mode-axis" class="flex-1 py-1 rounded text-slate-500 hover:text-slate-700 transition-all focus:outline-none">
+                By Axis Names
+              </button>
+            </div>
+          </div>
+
+          <div id="slice-container-array" class="space-y-1">
+            <input type="text" id="input-slice-array" placeholder="e.g. 0, :, 12" class="form-input py-1 px-1.5 text-[11px] w-full box-border">
+            <p class="text-[10px] leading-tight text-slate-400">
+              Comma-separated values matching the dataset dimensions.
+            </p>
+          </div>
+
+          <div id="slice-container-axis" class="hidden space-y-2">
+            <div class="flex items-center justify-between">
+              <button type="button" id="btn-add-axis-row"
+                class="flex items-center gap-1 text-[10px] font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded transition-colors focus:outline-none">
+                + Add Axis
+              </button>
+            </div>
+
+            <div id="axis-rows-container" class="space-y-1.5 max-h-32 overflow-y-auto pr-1"></div>
+          </div>
+
+          <p class="text-[10px] text-slate-400 italic pt-1 border-t border-slate-100">
+            Unmatched dimensions default to 0.
+          </p>
+        </div>
+
+        <!-- Squeeze -->
+        <div class="flex items-start gap-2 pt-1">
+          <div class="flex h-5 items-center">
+            <input id="input-nexus-squeeze" type="checkbox" checked class="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          </div>
+          <div class="text-xs">
+            <label for="input-nexus-squeeze" class="font-medium text-slate-700">Squeeze Dimensions</label>
+            <p class="text-[10px] text-slate-400 leading-tight">Ignore dimensions of size one</p>
+          </div>
+        </div>
+
       </div>
 
-      <label for="input-x-col" class="form-label">x Column Index</label>
-      <div class="grid grid-cols-[2fr_1fr] gap-3 items-center">
-        <p id="x-col-help" class="text-[11px] leading-tight text-slate-400">Which column contains the x axis (1 based)</p>
-        <input id="input-x-col" aria-describedby="x-col-help"
-        placeholder="1" type="number" step="1" class="form-input truncate text-center py-1">
-      </div>
-
-      <label for="input-y-cols" class="form-label">y Column Indices</label>
-      <p id="y-cols-help" class="text-[11px] leading-tight text-slate-400">Which column(s) contain y axis data (1 based). Use commas to separate values and dashes (-) to specify ranges.</p>
-      <input id="input-y-cols" aria-describedby="y-cols-help"
-      placeholder="2-end" type="text" class="form-input truncate text-center py-1">
 
     </form>
   </div>
