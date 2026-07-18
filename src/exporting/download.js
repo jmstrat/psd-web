@@ -7,29 +7,47 @@ const defaultOptions = {
   separator: ','
 }
 
-function getArchiveMetadataStream ({
-    averagingOptions,
-    parserOptions,
-    processingOptions
+function formatMetadataValue (value, indent = '') {
+  if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+    let result = ''
+    for (const [subKey, subValue] of Object.entries(value)) {
+      result += `\n${indent}  - ${subKey}: ${formatMetadataValue(subValue, indent + '  ')}`
+    }
+    return result
+  }
+
+  if (Array.isArray(value)) {
+    return value.join(', ')
+  }
+
+  return value
+}
+
+function formatMetadataSection (title, options) {
+  const underline = '-'.repeat(title.length)
+  let section = `${title}\n${underline}\n`
+
+  for (const [key, value] of Object.entries(options)) {
+    section += `- ${key}: ${formatMetadataValue(value)}\n`
+  }
+  return section
+}
+
+function getArchiveMetadataStream({
+  averagingOptions,
+  parserOptions,
+  processingOptions
 }) {
   const encoder = new TextEncoder()
 
   let metaText = `PSD Analysis\n============\nAnalysis Performed: ${new Date().toISOString()}`
 
-  metaText += "\n\nImporting\n---------\n"
-  for (const [key, value] of Object.entries(parserOptions)) {
-    metaText += `- ${key}: ${value}\n`
-  }
-
-  metaText += "\n\nAveraging\n---------\n"
-  for (const [key, value] of Object.entries(averagingOptions)) {
-    metaText += `- ${key}: ${value}\n`
-  }
-
-  metaText += "\n\nProcessing\n----------\n"
-  for (const [key, value] of Object.entries(processingOptions)) {
-    metaText += `- ${key}: ${value}\n`
-  }
+  metaText += '\n\n'
+  metaText += formatMetadataSection("Importing", parserOptions)
+  metaText += '\n\n'
+  metaText += formatMetadataSection("Averaging", averagingOptions)
+  metaText += '\n\n'
+  metaText += formatMetadataSection("Processing", processingOptions)
 
   return new ReadableStream({
     start(controller) {
