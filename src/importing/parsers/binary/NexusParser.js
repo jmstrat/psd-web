@@ -8,22 +8,31 @@ const metadataDiscoveryPaths = [
   "/entry/user"
 ]
 
+// TODO we should allow overriding the x axis
 // dataPath: Explicitly targets a specific HDF5 group path for data extraction (default tries to automatically find the main data)
 // primaryDataset: Explicitly defines the name of the main dataset containing the intensity data (default uses the group's default signal attribute)
 // squeeze: Eliminates dimensions of size one from extracted data arrays
 // xMin / xMax: Limits the X range that is read
 // slice: Configures multidimensional cuts by dimension or by axis name (see below)
 
-// TODO we should allow reading a dimension into multiple y columns
-// and allow a step for slicing
-/**
-  Slice by Axis Name:
-    slice: { posX: 0, posY: 12 }
-  Slice by Dimension:
-    slice: [0, ":", 12]
-  Fallback:
-    Any dimension not matched defaults to 0 if it is not the x axis dimension
- */
+/*
+Slice Options:
+
+Slice by Axis Name:
+  slice: { posX: 0, posY: { start: 0, end: 5, step: 2 }, posZ: [1, 3, 7] }
+
+Slice by Dimension:
+  slice: [0, ":", { start: 0, end: 5 }, [1, 3, 7]]
+
+Valid Formats:
+  - ":"                           : The whole dimension
+  - number                        : An single index
+  - Array<number>                 : A list of indices
+  - Object {start?, end?, step?}    : A range
+
+Fallback:
+  Any dimension not matched defaults to 0 if it is not the x axis dimension
+*/
 export class NexusParser extends BaseParser {
   validateOptions (options = {}) {
     if (options.slice && typeof options.slice !== "object") {
@@ -43,22 +52,15 @@ export class NexusParser extends BaseParser {
         }
 
         for (const part of slice) {
-          if (part !== ":" && !Number.isInteger(part)) {
-            throw new Error("slice array must contain only integers or ':'")
-          }
+          NexusParser.#validateSliceValue(part, "array element")
         }
       } else if (slice && typeof slice === "object") {
         for (const [axis, value] of Object.entries(slice)) {
           if (typeof axis !== "string" || axis.trim() === "") {
             throw new Error("slice axis names must be non-empty strings")
           }
-
-          if (value !== ":" && !Number.isInteger(value)) {
-            throw new Error(`slice value for axis "${axis}" must be an integer or ":"`)
-          }
+          NexusParser.#validateSliceValue(value, `axis "${axis}"`)
         }
-      } else {
-        throw new Error("slice must be an array or an object")
       }
     }
 
@@ -73,6 +75,39 @@ export class NexusParser extends BaseParser {
     }
   }
 
+  static #validateSliceValue (value, contextName) {
+    // Simple values
+    if (value === ":" || Number.isInteger(value)) {
+      return
+    }
+
+    // Ranges
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      if (value.start !== undefined && !Number.isInteger(value.start)) {
+        throw new Error(`slice range 'start' for ${contextName} must be an integer`)
+      }
+      if (value.end !== undefined && !Number.isInteger(value.end)) {
+        throw new Error(`slice range 'end' for ${contextName} must be an integer`)
+      }
+      if (value.step !== undefined && (!Number.isInteger(value.step) || value.step <= 0)) {
+        throw new Error(`slice range 'step' for ${contextName} must be a positive integer`)
+      }
+      return
+    }
+
+    // Array of indices
+    if (Array.isArray(value)) {
+      for (const idx of value) {
+        if (!Number.isInteger(idx)) {
+          throw new Error(`slice index list for ${contextName} must contain only integers`)
+        }
+      }
+      return
+    }
+
+    throw new Error(`slice value for ${contextName} must be an integer, range object, array, or ":"`)
+  }
+
   async getDatasetCount (fileObj) {
     await this.#openVirtualFile(fileObj)
 
@@ -82,16 +117,23 @@ export class NexusParser extends BaseParser {
         return 0
       }
 
-      const primaryDatasetKey = this.#resolvePrimaryDataset(group, path)
+      const primaryDatasetKey = this.#resolvePrimaryDatasetKey(group, path)
       if (!primaryDatasetKey) {
         return 0
       }
 
-      const yNames = this.#resolveYNames(group, primaryDatasetKey)
-      return yNames.filter(name => {
-        const dataset = this.file.get(`${path}/${name}`)
-        return dataset !== null && dataset !== undefined
-      }).length
+      const primaryDataset = this.file.get(`${path}/${primaryDatasetKey}`)
+      if (!primaryDataset) {
+        return 0
+      }
+
+      const axes = this.#resolveAxes(group, primaryDataset)
+      const rawSlice = this.#resolveSliceForDataset(primaryDataset, axes)
+      const shape = primaryDataset.shape || []
+
+      const coordinatePairs = this.#parseSliceToDimensionCoordinates(rawSlice, shape)
+      const selectionsGrid = this.#buildSelectionGrid(coordinatePairs)
+      return selectionsGrid.length
     } finally {
       await this.#closeVirtualFile()
     }
@@ -149,7 +191,7 @@ export class NexusParser extends BaseParser {
       throw new Error("No NXdata group could be found")
     }
 
-    const primaryDatasetKey = this.#resolvePrimaryDataset(group, path)
+    const primaryDatasetKey = this.#resolvePrimaryDatasetKey(group, path)
     if (!primaryDatasetKey) {
       throw new Error("No primary dataset could be found")
     }
@@ -176,25 +218,36 @@ export class NexusParser extends BaseParser {
       throw new Error(`Could not locate X axis dataset "${xName}"`)
     }
 
-    const rawSlice = this.#resolveSliceForDataset(xDataset, axes)
     const shape = xDataset.shape || []
-    const baseSelection = this.#convertSliceToDataIndexes(rawSlice, shape)
-    const targetDimension = this.#findXAxisDimension(axes, xDataset)
 
+    if (shape.length !== 1) {
+      throw new Error(`X-axis dataset "${xName}" must be a 1D vector, but has a shape length of ${shape.length}`)
+    }
+
+    const baseSelection = Array.from({ length: shape.length }, () => [])
+    const targetDimension = this.#findXAxisDimension(axes, primaryDataset)
     const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, targetDimension)
     data.bounds = bounds
 
-    return this.#readDatasetVector(xName, xDataset, axes, bounds)
+    return this.#readDatasetVector(xName, xDataset, axes, baseSelection, bounds)
   }
 
   #readYDatasets (data) {
-    const { group, path, primaryDatasetKey, axes, bounds } = data
-    const yNames = this.#resolveYNames(group, primaryDatasetKey)
+    const { primaryDatasetKey, primaryDataset, axes, bounds } = data
     const yOutputs = []
 
-    for (const name of yNames) {
-      const dataset = this.file.get(`${path}/${name}`)
-      yOutputs.push(this.#readDatasetVector(name, dataset, axes, bounds))
+    const rawSlice = this.#resolveSliceForDataset(primaryDataset, axes)
+    const shape = primaryDataset.shape || []
+
+    const coordinatePairs = this.#parseSliceToDimensionCoordinates(rawSlice, shape)
+    const selectionsGrid = this.#buildSelectionGrid(coordinatePairs)
+
+    for (let i = 0; i < selectionsGrid.length; i++) {
+      const selection = selectionsGrid[i]
+      const vectorName = `${primaryDatasetKey}_slice_${i}`
+      const yVector = this.#readDatasetVector(vectorName, primaryDataset, axes, selection, bounds)
+
+      yOutputs.push(yVector)
     }
 
     return yOutputs
@@ -279,7 +332,7 @@ export class NexusParser extends BaseParser {
     return { group: null, path: null }
   }
 
-  #resolvePrimaryDataset (dataGroup, path) {
+  #resolvePrimaryDatasetKey (dataGroup, path) {
     if (this.options.primaryDataset) {
       return this.options.primaryDataset
     }
@@ -293,21 +346,6 @@ export class NexusParser extends BaseParser {
       const node = this.file.get(`${path}/${key}`)
       return node && node.type === "Dataset"
     })
-  }
-
-  #resolveYNames (dataGroup, primaryDatasetKey) {
-    const result = [primaryDatasetKey]
-    const auxiliary = this.#getAttrValue(dataGroup, "auxiliary_signals")
-
-    if (auxiliary) {
-      if (Array.isArray(auxiliary)) {
-        result.push(...auxiliary)
-      } else {
-        result.push(auxiliary)
-      }
-    }
-
-    return [...new Set(result)]
   }
 
   #resolveAxes (dataGroup, dataset) {
@@ -325,7 +363,7 @@ export class NexusParser extends BaseParser {
 
   // ---- Data slicing ----
 
-  #readDatasetVector (name, dataset, axes, bounds = null) {
+  #readDatasetVector (name, dataset, axes, selection, bounds = null) {
     if (!dataset) {
       return new Float64Array(0)
     }
@@ -335,11 +373,11 @@ export class NexusParser extends BaseParser {
       return Float64Array.of(Number(dataset.value))
     }
 
-    const rawSlice = this.#resolveSliceForDataset(dataset, axes)
-    const selection = this.#convertSliceToDataIndexes(rawSlice, shape)
     const targetDimension = this.#findXAxisDimension(axes, dataset)
-
     let activeDimensions = 0
+
+    // Clone to avoid mutation
+    selection = selection.map(coord => [...coord])
 
     for (let i = 0; i < shape.length; i++) {
       let dimensionLength = 1
@@ -408,29 +446,80 @@ export class NexusParser extends BaseParser {
     return slice
   }
 
-  #convertSliceToDataIndexes (slice, shape) {
-    const selection = []
+  #parseSliceToDimensionCoordinates (slice, shape) {
+    const coordinatesByDimension = []
 
     for (let i = 0; i < shape.length; i++) {
-      if (slice[i] === undefined || slice[i] === null || slice[i] === ":") {
-        selection.push([])
+      const val = slice[i]
+
+      // Use the whole of this axis
+      if (val === undefined || val === null || val === ":") {
+        coordinatesByDimension.push([ [] ])
         continue
       }
 
-      const value = Number(slice[i])
+      // Range {start, end, step } all optional
+      if (typeof val === "object" && !Array.isArray(val)) {
+        const start = val.start ?? 0
+        const end = val.end ?? shape[i]
+        const step = val.step ?? 1
 
-      if (!Number.isInteger(value)) {
-        throw new Error(`Slice index for dimension ${i} must be an integer or ":"`)
+        const dimensionRanges = []
+        for (let idx = start; idx < end; idx += step) {
+          if (idx >= 0 && idx < shape[i]) {
+            dimensionRanges.push([idx, idx + 1])
+          }
+        }
+        coordinatesByDimension.push(dimensionRanges)
+        continue
       }
 
+      // Array of indices
+      if (Array.isArray(val)) {
+        const dimensionIndices = val.map(idx => {
+          const value = Number(idx)
+          if (value < 0 || value >= shape[i]) {
+            throw new Error(`Slice index ${value} is outside dimension ${i} (size ${shape[i]})`)
+          }
+          return [value, value + 1]
+        })
+        coordinatesByDimension.push(dimensionIndices)
+        continue
+      }
+
+      // Single integer
+      const value = Number(val)
+      if (!Number.isInteger(value)) {
+        throw new Error(`Slice index for dimension ${i} must be an integer, range object, array, or ":"`)
+      }
       if (value < 0 || value >= shape[i]) {
         throw new Error(`Slice index ${value} is outside dimension ${i} (size ${shape[i]})`)
       }
-
-      selection.push([value, value + 1])
+      coordinatesByDimension.push([ [value, value + 1] ])
     }
 
-    return selection
+    return coordinatesByDimension
+  }
+
+  #buildSelectionGrid (coordinatesByDimension) {
+    const generate = (axisIndex) => {
+      if (axisIndex === coordinatesByDimension.length) {
+        return [[]]
+      }
+
+      const subGrid = generate(axisIndex + 1)
+      const results = []
+
+      for (const currentCoordinate of coordinatesByDimension[axisIndex]) {
+        for (const subSelection of subGrid) {
+          results.push([currentCoordinate, ...subSelection])
+        }
+      }
+
+      return results
+    }
+
+    return generate(0)
   }
 
   #findIndexLimitsForDataset (dataset, selection, targetDimension) {

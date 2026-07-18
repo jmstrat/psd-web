@@ -1,30 +1,5 @@
-const btnArray = document.querySelector('#btn-mode-array')
-const btnAxis = document.querySelector('#btn-mode-axis')
-const containerArray = document.querySelector('#slice-container-array')
-const containerAxis = document.querySelector('#slice-container-axis')
 const axisRowsContainer = document.querySelector('#axis-rows-container')
 const btnAddAxis = document.querySelector('#btn-add-axis-row')
-const arrayInput = document.querySelector('#input-slice-array')
-
-let activeMode = 'array'
-
-function toggleMode (mode) {
-  activeMode = mode
-  if (mode === 'array') {
-    btnArray.className = 'flex-1 py-1 rounded bg-white text-slate-800 shadow-sm transition-all focus:outline-none'
-    btnAxis.className = 'flex-1 py-1 rounded text-slate-500 hover:text-slate-700 transition-all focus:outline-none'
-    containerArray.classList.remove('hidden')
-    containerAxis.classList.add('hidden')
-  } else {
-    btnAxis.className = 'flex-1 py-1 rounded bg-white text-slate-800 shadow-sm transition-all focus:outline-none'
-    btnArray.className = 'flex-1 py-1 rounded text-slate-500 hover:text-slate-700 transition-all focus:outline-none'
-    containerAxis.classList.remove('hidden')
-    containerArray.classList.add('hidden')
-  }
-}
-
-btnArray.addEventListener('click', () => toggleMode('array'))
-btnAxis.addEventListener('click', () => toggleMode('axis'))
 
 function buildInputField (placeholder, extraClasses = '') {
   const input = document.createElement('input')
@@ -46,10 +21,10 @@ function buildRemoveButton (row) {
 
 function createAxisRow () {
   const row = document.createElement('div')
-  row.className = 'grid grid-cols-[100px_1fr_20px] gap-1.5 items-center bg-slate-50 p-1 rounded border border-slate-200/60 shadow-sm animate-fadeIn box-border w-full'
+  row.className = 'grid grid-cols-[1fr_1fr_20px] gap-1.5 items-center py-0.5 animate-fadeIn box-border w-full'
 
   const keyInput = buildInputField('Axis Name', 'font-medium axis-key')
-  const valInput = buildInputField('Value (e.g. 12)', 'axis-val')
+  const valInput = buildInputField('Slice', 'axis-val')
   const removeBtn = buildRemoveButton(row)
 
   row.appendChild(keyInput)
@@ -62,32 +37,57 @@ function createAxisRow () {
 btnAddAxis.addEventListener('click', () => {
   axisRowsContainer.appendChild(createAxisRow())
 })
-
 axisRowsContainer.appendChild(createAxisRow())
 
-function parsePrimitiveValue (str) {
+function parseAxisSliceValue (str) {
   const trimmed = str.trim()
+
+  // Whole axis
+  if (trimmed === ":") {
+    return ":"
+  }
+
+  // Array of indices
+  if (trimmed.includes(",")) {
+    return trimmed.split(",").map(item => {
+      const num = Number(item.trim())
+      if (isNaN(num)) {
+        throw new Error(`List item "${item}" must be a valid integer`)
+      }
+      return num
+    })
+  }
+
+  // Ranges
+  if (trimmed.includes(":")) {
+    const segments = trimmed.split(":").map(s => {
+      const val = s.trim()
+      return val === "" ? undefined : Number(val)
+    })
+
+    const rangeObj = {}
+    if (segments[0] !== undefined) {
+      rangeObj.start = segments[0]
+    }
+    if (segments[1] !== undefined) {
+      rangeObj.end = segments[1]
+    }
+    if (segments[2] !== undefined) {
+      rangeObj.step = segments[2]
+    }
+
+    return rangeObj
+  }
+
+  // Single index
   if (!isNaN(trimmed) && trimmed !== '') {
     return Number(trimmed)
   }
+
   return trimmed.replace(/['"]/g, '')
 }
 
 export function getSliceConfiguration () {
-  if (activeMode === 'array') {
-    const rawVal = arrayInput.value.trim()
-    if (!rawVal) {
-      return undefined
-    }
-
-    const parts = rawVal.split(',')
-    const parsedArray = []
-    for (const part of parts) {
-      parsedArray.push(parsePrimitiveValue(part))
-    }
-    return parsedArray
-  }
-
   const sliceObject = {}
   const rows = axisRowsContainer.querySelectorAll('#axis-rows-container > div')
 
@@ -99,7 +99,7 @@ export function getSliceConfiguration () {
       continue
     }
 
-    sliceObject[key] = parsePrimitiveValue(valString)
+    sliceObject[key] = parseAxisSliceValue(valString)
   }
 
   return Object.keys(sliceObject).length > 0 ? sliceObject : undefined
