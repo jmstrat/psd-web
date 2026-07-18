@@ -33,6 +33,8 @@ Fallback:
   Any dimension not matched defaults to 0 if it is not the x axis dimension
 */
 export class NexusParser extends BaseParser {
+  // ---- Public API ----
+
   validateOptions (options = {}) {
     if (options.slice && typeof options.slice !== "object") {
       throw new Error("slice must be an object")
@@ -246,19 +248,6 @@ export class NexusParser extends BaseParser {
     return yOutputs
   }
 
-  #createDataType (data) {
-    const { primaryDataset, primaryDatasetKey, axes } = data
-    const xAxisIndex = this.#findXAxisDimension(axes, primaryDataset)
-    const xName = axes[xAxisIndex]
-    const xDataset = this.file.get(`${data.path}/${xName}`)
-
-    return {
-      id: this.file.attrs["program_name"]?.value || "nexus_file",
-      x: this.#getLabel(xDataset, xName, "x"),
-      y: this.#getLabel(primaryDataset, primaryDatasetKey, "intensity")
-    }
-  }
-
   // ---- HDF5 file searching ----
 
   #resolveDataGroup () {
@@ -352,6 +341,37 @@ export class NexusParser extends BaseParser {
     }
 
     return dataset.shape.map((_, index) => `axis_${index}`)
+  }
+
+  #findXAxisDimension (axes, dataset) {
+    if (!dataset || !dataset.shape) {
+      return 0
+    }
+
+    if (this.options.xAxisName) {
+      if (Array.isArray(axes)) {
+        const matchedIndex = axes.findIndex(axis => axis === this.options.xAxisName)
+        if (matchedIndex !== -1) {
+          return matchedIndex
+        }
+      }
+
+      throw new Error(`The X-axis "${this.options.xAxisName}" could not be found in the axes metadata.`)
+    }
+
+    const shape = dataset.shape || []
+
+    if (!axes || axes.length === 0) {
+      return shape.length - 1
+    }
+
+    for (let i = shape.length - 1; i >= 0; i--) {
+      if (axes[i] && axes[i] !== ".") {
+        return i
+      }
+    }
+
+    return shape.length - 1
   }
 
   // ---- Data slicing ----
@@ -566,39 +586,7 @@ export class NexusParser extends BaseParser {
     return result
   }
 
-  #findXAxisDimension (axes, dataset) {
-    if (!dataset || !dataset.shape) {
-      return 0
-    }
-
-    if (this.options.xAxisName) {
-      if (Array.isArray(axes)) {
-        const matchedIndex = axes.findIndex(axis => axis === this.options.xAxisName)
-        if (matchedIndex !== -1) {
-          return matchedIndex
-        }
-      }
-
-      throw new Error(`The X-axis "${this.options.xAxisName}" could not be found in the axes metadata.`)
-    }
-
-    const shape = dataset.shape || []
-
-    if (!axes || axes.length === 0) {
-      return shape.length - 1
-    }
-
-    for (let i = shape.length - 1; i >= 0; i--) {
-      if (axes[i] && axes[i] !== ".") {
-        return i
-      }
-    }
-
-    return shape.length - 1
-  }
-
   // ---- Metadata ----
-
 
   #extractGlobalMetadata () {
     this.metadata = {}
@@ -792,5 +780,18 @@ export class NexusParser extends BaseParser {
     }
 
     return '/' + segments.join('/')
+  }
+
+  #createDataType (data) {
+    const { primaryDataset, primaryDatasetKey, axes } = data
+    const xAxisIndex = this.#findXAxisDimension(axes, primaryDataset)
+    const xName = axes[xAxisIndex]
+    const xDataset = this.file.get(`${data.path}/${xName}`)
+
+    return {
+      id: this.file.attrs["program_name"]?.value || "nexus_file",
+      x: this.#getLabel(xDataset, xName, "x"),
+      y: this.#getLabel(primaryDataset, primaryDatasetKey, "intensity")
+    }
   }
 }
