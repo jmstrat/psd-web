@@ -12,16 +12,17 @@ const metadataDiscoveryPaths = [
 // primaryDataset: Explicitly defines the name of the main dataset containing the intensity data (default uses the group's default signal attribute)
 // squeeze: Eliminates dimensions of size one from extracted data arrays
 // xMin / xMax: Limits the X range that is read
-// slice: Configures multidimensional cuts by dataset name or by axis name (see below)
+// slice: Configures multidimensional cuts by dimension or by axis name (see below)
 
+// TODO we should allow reading a dimension into multiple y columns
+// and allow a step for slicing
 /**
   Slice by Axis Name:
     slice: { posX: 0, posY: 12 }
-  Slice by Dataset Name:
-    slice: { intensity: [0, ":", 12] }
+  Slice by Dimension:
+    slice: [0, ":", 12]
   Fallback:
-    Any dimension not matched by axis or dataset name automatically
-    defaults to 0 if it is not the x axis dimension
+    Any dimension not matched defaults to 0 if it is not the x axis dimension
  */
 export class NexusParser extends BaseParser {
   validateOptions (options = {}) {
@@ -33,17 +34,31 @@ export class NexusParser extends BaseParser {
       throw new Error("squeeze must be a boolean")
     }
 
-    if (options.slice) {
-      for (const [key, val] of Object.entries(options.slice)) {
-        if (Array.isArray(val)) {
-          for (const part of val) {
-            if (part !== ":" && !Number.isInteger(part)) {
-              throw new Error(`Slice array for "${key}" must contain only integers or ":"`)
-            }
-          }
-        } else if (val !== ":" && !Number.isInteger(val) && typeof val !== "string") {
-          throw new Error(`Slice value for "${key}" must be an integer, a string axis index, or a range array`)
+    if (options.slice !== undefined) {
+      const { slice } = options
+
+      if (Array.isArray(slice)) {
+        if (slice.length === 0) {
+          throw new Error("slice array cannot be empty")
         }
+
+        for (const part of slice) {
+          if (part !== ":" && !Number.isInteger(part)) {
+            throw new Error("slice array must contain only integers or ':'")
+          }
+        }
+      } else if (slice && typeof slice === "object") {
+        for (const [axis, value] of Object.entries(slice)) {
+          if (typeof axis !== "string" || axis.trim() === "") {
+            throw new Error("slice axis names must be non-empty strings")
+          }
+
+          if (value !== ":" && !Number.isInteger(value)) {
+            throw new Error(`slice value for axis "${axis}" must be an integer or ":"`)
+          }
+        }
+      } else {
+        throw new Error("slice must be an array or an object")
       }
     }
 
@@ -161,7 +176,7 @@ export class NexusParser extends BaseParser {
       throw new Error(`Could not locate X axis dataset "${xName}"`)
     }
 
-    const rawSlice = this.#resolveSliceForDataset(xName, xDataset, axes)
+    const rawSlice = this.#resolveSliceForDataset(xDataset, axes)
     const shape = xDataset.shape || []
     const baseSelection = this.#convertSliceToDataIndexes(rawSlice, shape)
     const targetDimension = this.#findXAxisDimension(axes, xDataset)
@@ -320,9 +335,10 @@ export class NexusParser extends BaseParser {
       return Float64Array.of(Number(dataset.value))
     }
 
-    const rawSlice = this.#resolveSliceForDataset(name, dataset, axes)
+    const rawSlice = this.#resolveSliceForDataset(dataset, axes)
     const selection = this.#convertSliceToDataIndexes(rawSlice, shape)
     const targetDimension = this.#findXAxisDimension(axes, dataset)
+
     let activeDimensions = 0
 
     for (let i = 0; i < shape.length; i++) {
@@ -370,10 +386,10 @@ export class NexusParser extends BaseParser {
     return Float64Array.from(values)
   }
 
-  #resolveSliceForDataset (name, dataset, axes) {
+  #resolveSliceForDataset (dataset, axes) {
     const shape = dataset.shape || []
-    if (Array.isArray(this.options.slice[name])) {
-      return this.options.slice[name]
+    if (Array.isArray(this.options.slice)) {
+      return this.options.slice
     }
 
     const slice = new Array(shape.length).fill(":")
@@ -411,7 +427,7 @@ export class NexusParser extends BaseParser {
         throw new Error(`Slice index ${value} is outside dimension ${i} (size ${shape[i]})`)
       }
 
-      selection.push(value)
+      selection.push([value, value + 1])
     }
 
     return selection
