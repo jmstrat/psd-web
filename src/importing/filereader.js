@@ -117,6 +117,8 @@ async function readSpectraFiles (
         dataType = parser.dataType
         t0 = frames * acquisitionIntervalSeconds
 
+        console.log('Points per spectrum', spectrumLength)
+
         merger = new CycleMerger(spectraPerCycle, spectrumLength, cyclePeriodSeconds)
       } else {
         // Subsequent files we just validate that the axes match
