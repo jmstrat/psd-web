@@ -220,7 +220,7 @@ export class NexusParser extends BaseParser {
     }
 
     const baseSelection = Array.from({ length: shape.length }, () => [])
-    const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, xAxisIndex)
+    const bounds = this.#findIndexLimitsForDataset(xDataset, baseSelection, 0)
     data.bounds = bounds
 
     return this.#readDatasetVector(xDataset, axes, baseSelection, bounds)
@@ -517,7 +517,7 @@ export class NexusParser extends BaseParser {
       return -1
     }
 
-    const activeSelection = [...selection]
+    const activeSelection = selection.map(coord => [...coord])
 
     // Read the first and last items to determine axis direction
     activeSelection[targetDimension] = [0, 1]
@@ -596,7 +596,6 @@ export class NexusParser extends BaseParser {
 
     return shape.length - 1
   }
-
 
   // ---- Metadata ----
 
