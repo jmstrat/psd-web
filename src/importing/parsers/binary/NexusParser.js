@@ -1,7 +1,5 @@
 import { BaseParser } from "../BaseParser.js"
 
-import h5wasm from "h5wasm"
-
 const metadataDiscoveryPaths = [
   "/entry/instrument",
   "/entry/sample",
@@ -163,6 +161,8 @@ export class NexusParser extends BaseParser {
     if (this.file) {
       throw new Error('File already open')
     }
+
+    const h5wasm = await import('h5wasm')
     const { FS } = await h5wasm.ready
     FS.mkdir('/work')
     FS.mount(FS.filesystems.WORKERFS, { files: [fileObj] }, '/work')
@@ -173,6 +173,8 @@ export class NexusParser extends BaseParser {
     if (!this.file) {
       return
     }
+
+    const h5wasm = await import('h5wasm')
     const { FS } = await h5wasm.ready
     this.file.close()
     FS.unmount('/work')
