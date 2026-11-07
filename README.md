@@ -12,15 +12,8 @@ This interactive web application functions as a browser-based phase sensitive de
 
 The processing has not been heavily tested. Do not rely solely on this tool without independently verifying the results.
 
-
-## Key Features
-*   **Zero Install:** Runs directly within any modern browser, no installation necessary
-*  **Private:** Processes all data locally, ensuring your data never leaves your computer.
-*   **Visualizations:** View plots of phase-resolved data, profiles and in-phase data.
-
-
 ## Supported Applications
-*   **Pair Distribution Function Analysis:** Takes `.gr` files directly from PDFGetX2/3
+*   **Pair Distribution Function Analysis:** Takes `.gr` files from PDFGetX2/3
 *   **Any Plain Text Data:** Takes 2+ column `.xy` / `.csv` / `.dat` / `.txt` files
 *   **Possibly more to come...**
 
@@ -35,6 +28,8 @@ The processing has not been heavily tested. Do not rely solely on this tool with
 The PSD calculation is written in C++ and is compiled to WebAssembly.
 
 The application is built using Vite, with dependencies managed by npm.
+The frontend is written in vanilla javascript (no frontend framework) for fun.
+Dependencies are limited to charts, CSS, and binary file IO.
 
 ### Requirements
 
