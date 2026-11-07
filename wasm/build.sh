@@ -3,7 +3,7 @@
 mkdir ../wasm-build/
 
 # INITIAL_MEMORY=64MB
-emcc psd.cpp -O3 \
+em++ psd.cpp -O3 \
   -s MODULARIZE=1 \
   -s EXPORT_ES6=1 \
   -s ENVIRONMENT=worker \
