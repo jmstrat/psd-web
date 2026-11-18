@@ -4,7 +4,7 @@ import { destroyChart, axisLabel } from './util.js'
 const SinglePhaseChartCtx = document.getElementById("chartSinglePhase").getContext("2d")
 let SinglePhaseChart = null
 
-export function renderSinglePhase ({ xAxisData, yAxisData, targetPhase, dataType }) {
+export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, dataType }) {
   const dataset = {
     label: '',
     borderColor: "#000",
@@ -17,7 +17,7 @@ export function renderSinglePhase ({ xAxisData, yAxisData, targetPhase, dataType
     data: yAxisData
   }
 
-  const titleText = `θ = ${targetPhase}°`
+  const titleText = mode === 'psd' ? `θ = ${targetPhase}°` : `t = ${targetPhase} s`
 
   if (!SinglePhaseChart) {
     SinglePhaseChart = createBaseChart(

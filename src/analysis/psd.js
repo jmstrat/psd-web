@@ -1,7 +1,6 @@
 import { SharedFileReader } from "@/importing/filereader.js"
 import { CycleMerger } from "@/importing/cycle-merger.js"
 import { WaveType } from "./wavetypes.js"
-import Runner from "./wasm-runner.js"
 
 // Note that the actual calculations are done in a wasm module
 // This file serves to wrap the module to facilitate memory management etc.
@@ -9,22 +8,9 @@ import Runner from "./wasm-runner.js"
 // SharedFileReader must have data available before calling the functions
 // in this module.
 
-// Each function can (optionally) take a runner argument generated with this
-// function to allow running multiple functions without multiple copies of
-// the raw data
-export function allocateRunner () {
-  const { averagedPeriod, timeValues } = SharedFileReader.getData()
-
-  return new Runner()
-    .allocate({
-      averagedPeriod,
-      timeValues
-    })
-}
-
 export function runPSD (
   { resolution, waveType, harmonic },
-  runner = null
+  runner
 ) {
   if (!Object.keys(WaveType).includes(waveType)) {
     throw new Error("Unknown wave type")
@@ -37,10 +23,6 @@ export function runPSD (
   } = SharedFileReader.getData()
 
   console.time("PSD Calculation")
-  const managedRunner = !runner
-  if (managedRunner) {
-    runner = allocateRunner()
-  }
 
   const outputSize = Math.round(360 / resolution) * spectrumLength
 
@@ -61,11 +43,8 @@ export function runPSD (
     )
   })
   .read('output')
-  if (managedRunner) {
-    runner.free()
-  } else {
-    runner.free('output')
-  }
+
+  runner.free('output')
   console.timeEnd("PSD Calculation")
 
   // Split the array into individual datasets and return to the main
@@ -81,8 +60,7 @@ export function runPSD (
 
   for (let phaseIndex = 0; phaseIndex < phaseCount; phaseIndex++) {
     const phaseAngle = phaseIndex * resolution
-    const phaseYData = CycleMerger.extractDataset(result, spectrumLength, phaseIndex)
-                       .slice()
+    const phaseYData = CycleMerger.extractDataset(result, spectrumLength, phaseIndex).slice()
 
     transferList.push(phaseYData.buffer)
 
@@ -100,7 +78,7 @@ export function runPSD (
   }
 }
 
-export function getProfile ({ xIndex, resolution, waveType, harmonic }, runner=null) {
+export function getProfile ({ xIndex, resolution, waveType, harmonic }, runner) {
   if (!Object.keys(WaveType).includes(waveType)) {
     throw new Error("Unknown wave type")
   }
@@ -108,11 +86,6 @@ export function getProfile ({ xIndex, resolution, waveType, harmonic }, runner=n
   console.time("Profile Calculation")
   const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
   const phaseCount = Math.floor(360.0 / resolution)
-
-  const managedRunner = !runner
-  if (managedRunner) {
-    runner = allocateRunner()
-  }
 
   const intensities = runner
   .allocate({
@@ -132,11 +105,8 @@ export function getProfile ({ xIndex, resolution, waveType, harmonic }, runner=n
     )
   })
   .read('output')
-  if (managedRunner) {
-    runner.free()
-  } else {
-    runner.free('output')
-  }
+
+  runner.free('output')
 
   const phaseAngles = new Float64Array(phaseCount)
 
@@ -170,18 +140,13 @@ export function getProfile ({ xIndex, resolution, waveType, harmonic }, runner=n
   }
 }
 
-export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner=null) {
+export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner) {
   if (!Object.keys(WaveType).includes(waveType)) {
     throw new Error("Unknown wave type")
   }
 
   console.time("Single Phase PSD Calculation")
   const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
-
-  const managedRunner = !runner
-  if (managedRunner) {
-    runner = allocateRunner()
-  }
 
   const singleSpectrum = runner
   .allocate({
@@ -200,11 +165,8 @@ export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner=null
     )
   })
   .read('output')
-  if (managedRunner) {
-    runner.free()
-  } else {
-    runner.free('output')
-  }
+
+  runner.free('output')
 
   const xBufferToTransfer = x.slice().buffer
   const transferList = [xBufferToTransfer, singleSpectrum.buffer]

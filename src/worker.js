@@ -1,11 +1,56 @@
 import { Messages, ProgressStage } from "./messages.js"
 import { SharedFileReader } from "./importing/filereader.js"
+
+import Runner from "./analysis/wasm-runner.js"
 import {
-  allocateRunner,
   runPSD,
   getProfile,
   getSinglePhase
 } from "./analysis/psd.js"
+
+import {
+  runDifferential,
+  getDifferentialProfile,
+  getDifferentialSinglePhase
+} from "./analysis/differential.js"
+
+const analysisModes = {
+  psd: {
+    run: runPSD,
+    profile: getProfile,
+    singlePhase: getSinglePhase
+  },
+  differential: {
+    run: runDifferential,
+    profile: getDifferentialProfile,
+    singlePhase: getDifferentialSinglePhase
+  }
+}
+
+let sharedRunner = null
+
+function allocateRunner () {
+  if (sharedRunner) {
+    sharedRunner.free()
+  }
+
+  const { averagedPeriod, timeValues } = SharedFileReader.getData()
+
+  sharedRunner = new Runner()
+  .allocate({
+    averagedPeriod,
+    timeValues
+  })
+}
+
+function getMode (mode) {
+  const fns = analysisModes[mode]
+
+  if (!fns) {
+    throw new Error(`Unknown processing mode ${mode}`)
+  }
+  return fns
+}
 
 onmessage = async ({ data }) => {
   switch (data.type) {
@@ -26,11 +71,15 @@ onmessage = async ({ data }) => {
           stage: ProgressStage.CALCULATING
         })
 
-        const { transferList, ...result } = runPSD(data.processingOptions)
+        allocateRunner()
+        const calcF = getMode(data.processingOptions.mode).run
 
+        const { transferList, ...result } = calcF(data.processingOptions, sharedRunner)
         const { dataType, metadata } = SharedFileReader
+
         postMessage({
           type: Messages.PSD_RESULT,
+          mode: data.processingOptions.mode,
           ...result,
           dataType,
           metadata
@@ -96,10 +145,16 @@ onmessage = async ({ data }) => {
 
         const dataType = SharedFileReader.dataType
 
-        const sharedRunner = allocateRunner()
-        const { transferList, maxPhase, ...result } = getProfile(data, sharedRunner)
+        if (!sharedRunner) {
+          allocateRunner()
+        }
+
+        const mode = getMode(data.mode)
+
+        const { transferList, maxPhase, ...result } = mode.profile(data, sharedRunner)
         postMessage({
           type: Messages.PHASE_PROFILE_RESULT,
+          mode: data.mode,
           maxPhase,
           ...result,
           dataType
@@ -108,13 +163,16 @@ onmessage = async ({ data }) => {
         const args = {
           waveType: data.waveType,
           harmonic: data.harmonic,
-          targetPhase: maxPhase
+          targetPhase: maxPhase,
+
+          differentialResolution: data.differentialResolution,
+          referenceIndex: data.referenceIndex
         }
-        const { transferList: transferList2, ...result2 } = getSinglePhase(args, sharedRunner)
-        sharedRunner.free()
+        const { transferList: transferList2, ...result2 } = mode.singlePhase(args, sharedRunner)
 
         postMessage({
           type: Messages.SINGLE_PHASE_RESULT,
+          mode: data.mode,
           targetPhase: maxPhase,
           ...result2,
           dataType
@@ -140,11 +198,17 @@ onmessage = async ({ data }) => {
           stage: ProgressStage.CALCULATING
         })
 
-        const dataType = SharedFileReader.dataType
+        if (!sharedRunner) {
+          allocateRunner()
+        }
 
-        const { transferList, ...result } = getSinglePhase(data)
+        const dataType = SharedFileReader.dataType
+        const mode = getMode(data.mode)
+
+        const { transferList, ...result } = mode.singlePhase(data, sharedRunner)
         postMessage({
           type: Messages.SINGLE_PHASE_RESULT,
+          mode: data.mode,
           ...result,
           targetPhase: data.targetPhase,
           dataType

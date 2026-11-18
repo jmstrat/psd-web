@@ -6,7 +6,7 @@ import { gradientLegend } from './gradient-legend.js'
 const PSDChartCtx = document.getElementById("chartPSD").getContext("2d")
 let PSDChart = null
 
-export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
+export function renderPSD ({ mode, xAxisData, datasets, dataType }, onclick) {
   const styledDatasets = datasets.map((dataset, idx) => {
     const colour = getColour(palettes.roma, idx, datasets.length)
     return {
@@ -36,7 +36,7 @@ export function renderPSD ({ xAxisData, datasets, dataType }, onclick) {
           },
           plugins: {
             gradientLegend: {
-              cyclic: true,
+              cyclic: mode === 'psd',
               cyclicMax: '360°'
             },
             tooltip: {

@@ -125,6 +125,14 @@
             </h2>
             <div class="space-y-4">
               <div>
+                <label for="analysisMode" class="form-label">Analysis Mode</label>
+                <select id="analysisMode" class="form-input bg-white">
+                  <option value="psd">Phase Sensitive Detection</option>
+                  <option value="differential">Differential</option>
+                </select>
+              </div>
+
+              <div>
                 <label for="cyclePeriod" class="form-label">Cycle Period</label>
                 <div class="input-group">
                   <input id="cyclePeriod" type="number" step="any" class="input-group-field">
@@ -162,6 +170,13 @@
                   </label>
                   <input id="harmonic" type="number" value="1" step="1" class="form-input">
                 </div>
+              </div>
+
+              <div>
+                <label for="referenceIndex" class="form-label">
+                  Differential Reference Spectrum Index
+                </label>
+                <input id="referenceIndex" type="number" value="1" step="1" class="form-input" disabled>
               </div>
 
               <div>

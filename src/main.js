@@ -32,11 +32,14 @@ const chooseButton = document.getElementById("chooseFile")
 
 // Analysis settings
 const parametersForm = document.getElementById("parameters")
+const modeInput = document.getElementById("analysisMode")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
 const acquisitionIntervalInput = document.getElementById("acquisitionInterval")
 const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
+const referenceIndexInput = document.getElementById("referenceIndex")
 const resolutionInput = document.getElementById("resolution")
+const resolutionUnit = resolutionInput.parentElement.querySelector(".input-unit")
 
 const runButton = document.getElementById("runButton")
 
@@ -112,8 +115,26 @@ function validateForm () {
 
   const isCycleInvalid = isNaN(cycle) || cycle <= 0
   const isIntervalInvalid = isNaN(interval) || interval <= 0
-  const isHarmonicInvalid = isNaN(harmonic) || harmonic < 0 || !Number.isInteger(harmonic)
-  const isResolutionInvalid = isNaN(resolution) || resolution <= 0 || resolution >= 360
+
+  let isHarmonicInvalid = false
+  let isResolutionInvalid
+
+  if (modeInput.value === 'psd') {
+    waveTypeInput.disabled = false
+    harmonicInput.disabled = false
+    referenceIndexInput.disabled = true
+    resolutionUnit.textContent = '°'
+
+    isHarmonicInvalid = isNaN(harmonic) || harmonic < 0 || !Number.isInteger(harmonic)
+    isResolutionInvalid = isNaN(resolution) || resolution <= 0 || resolution >= 360
+  } else {
+    waveTypeInput.disabled = true
+    harmonicInput.disabled = true
+    referenceIndexInput.disabled = false
+    resolutionUnit.textContent = 'spectra'
+
+    isResolutionInvalid = isNaN(resolution) || resolution < 1
+  }
 
   const shouldDisable = isCycleInvalid ||
                         isIntervalInvalid ||
@@ -130,7 +151,6 @@ function validateForm () {
     const plural = fileInput.files.length !== 1
     fileStatus.textContent = `${fileInput.files.length} file${plural ? 's' : ''} ready to process`
   }
-
 
   if (status.type !== 'error') {
     updateReadyState()
@@ -195,6 +215,10 @@ worker.onmessage = ({ data }) => {
       destroyPhaseProfile()
       destroySinglePhase()
       metadata.render(data.metadata)
+
+      if (currentPsdData?.mode !== data.mode) {
+        destroyPSD()
+      }
 
       // Save data for downloading
       currentPsdData = data
@@ -299,9 +323,13 @@ parametersForm.addEventListener('submit', (event) => {
   }
 
   processingOptions = {
+    mode: modeInput.value,
     resolution: resolutionInput.valueAsNumber,
     waveType: waveTypeInput.value,
     harmonic: harmonicInput.valueAsNumber,
+
+    referenceIndex: referenceIndexInput.valueAsNumber - 1,
+    differentialResolution: resolutionInput.valueAsNumber
   }
 
   worker.postMessage({
@@ -320,10 +348,13 @@ function onPSDChartClick (x, idx) {
   runButton.disabled = true
   worker.postMessage({
     type: Messages.GET_PHASE_PROFILE,
+    mode: processingOptions.mode,
     xIndex: idx,
     resolution: 1,
     waveType: processingOptions.waveType,
-    harmonic: processingOptions.harmonic
+    harmonic: processingOptions.harmonic,
+    referenceIndex: processingOptions.referenceIndex,
+    differentialResolution: processingOptions.differentialResolution
   })
 }
 
@@ -332,9 +363,12 @@ function onPhaseProfileClick (x, idx) {
   status.type = 'info'
   worker.postMessage({
     type: Messages.GET_SINGLE_PHASE,
+    mode: processingOptions.mode,
     waveType: processingOptions.waveType,
     harmonic: processingOptions.harmonic,
-    targetPhase: Math.round(x)
+    targetPhase: Math.round(x),
+    referenceIndex: processingOptions.referenceIndex,
+    differentialResolution: processingOptions.differentialResolution
   })
 }
 

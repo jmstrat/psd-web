@@ -4,7 +4,27 @@ import { destroyChart } from './util.js'
 const PhaseProfileProfileCtx = document.getElementById("chartProfile").getContext("2d")
 let PhaseProfileChart = null
 
-export function renderPhaseProfile ({ intensities, phaseAngles, selectedX, dataType }, onclick) {
+const UNIT = {
+  psd: '°',
+  differential: 's'
+}
+
+const X_AXIS = {
+  psd: {
+    title: { display: true, text: `Phase / Degrees (${UNIT.psd})` },
+    min: 0,
+    max: 360,
+    ticks: {
+      stepSize: 45
+    }
+  },
+  differential: {
+    title: { display: true, text: `Time (${UNIT.differential})` },
+    min: 0
+  }
+}
+
+export function renderPhaseProfile ({ mode, intensities, phaseAngles, selectedX, dataType }, onclick) {
   let minVal = Infinity
   let maxVal = -Infinity
   let minIdx = 0
@@ -69,7 +89,7 @@ export function renderPhaseProfile ({ intensities, phaseAngles, selectedX, dataT
   if (dataType.x.unit) {
     titleText += ` ${dataType.x.unit}`
   }
-  const subtitleText = `Min: ${phaseAngles[minIdx]}° | Max: ${phaseAngles[maxIdx]}°`
+  const subtitleText = `Min: ${phaseAngles[minIdx]}${UNIT[mode]} | Max: ${phaseAngles[maxIdx]}${UNIT[mode]}`
 
   if (!PhaseProfileChart) {
     PhaseProfileChart = createBaseChart(
@@ -111,14 +131,7 @@ export function renderPhaseProfile ({ intensities, phaseAngles, selectedX, dataT
             }
           },
           scales: {
-            x: {
-              title: { display: true, text: "Phase / Degrees (°)" },
-              min: 0,
-              max: 360,
-              ticks: {
-                stepSize: 45
-              }
-            },
+            x: X_AXIS[mode],
             y: {
               title: { display: true, text: "Intensity" },
             }

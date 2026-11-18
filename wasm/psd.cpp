@@ -1,5 +1,8 @@
 #include "psd.h"
+
 #include <cmath>
+
+#include <algorithm>
 #include <vector>
 
 #ifndef M_PI
