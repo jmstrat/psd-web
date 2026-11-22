@@ -43,4 +43,16 @@ void runPhaseProfile(
   double* outputY
 );
 
+void runPSDMaxPhase(
+  const double* averagedPeriod,
+  const double* timeValues,
+  int spectraPerPeriod,
+  int spectrumLength,
+  double phaseResolutionDegrees,
+  WaveType waveType,
+  int harmonic,
+  double* outputPhaseDegrees,
+  double* outputMaxValues
+);
+
 }

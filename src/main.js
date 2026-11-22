@@ -7,9 +7,10 @@ import { DragAndDropManager } from './ui/drag-and-drop.js'
 import "./ui/tab-panel.js"
 import { getSliceConfiguration } from './ui/data-slice-input.js'
 import {
-  destroyPSD, renderPSD,
+  destroyPSD, renderPSD, zoomPSD,
+  destroyInPhase, renderInPhase, zoomInPhase,
   destroyPhaseProfile, renderPhaseProfile,
-  destroySinglePhase, renderSinglePhase
+  destroySinglePhase, renderSinglePhase, zoomSinglePhase
 } from "./charts/index.js"
 import { downloadAnalysisArchive } from "./exporting/download.js"
 
@@ -40,6 +41,7 @@ const harmonicInput = document.getElementById("harmonic")
 const referenceIndexInput = document.getElementById("referenceIndex")
 const resolutionInput = document.getElementById("resolution")
 const resolutionUnit = resolutionInput.parentElement.querySelector(".input-unit")
+const inPhaseThresholdInput = document.getElementById("inPhaseThreshold")
 
 const runButton = document.getElementById("runButton")
 
@@ -62,6 +64,7 @@ const dropSingle = document.getElementById('dropStateSingle')
 const dropMultiple = document.getElementById('dropStateMultiple')
 
 let currentPsdData = null
+let currentInPhaseData = null
 let currentProfileData = null
 let currentSinglePhaseData = null
 
@@ -175,12 +178,20 @@ function rangeToIntArray (input, diff=0) {
   return result
 }
 
+function syncZoom ({ chart }) {
+  const { min, max } = chart.scales.x
+  zoomPSD(min, max)
+  zoomInPhase(min, max)
+  zoomSinglePhase(min, max)
+}
+
 chooseButton.addEventListener("click", () => fileInput.click())
 fileInput.addEventListener("change", () => {
   validateForm()
 })
 
 destroyPSD()
+destroyInPhase()
 destroyPhaseProfile()
 destroySinglePhase()
 
@@ -226,8 +237,23 @@ worker.onmessage = ({ data }) => {
       currentSinglePhaseData = null
 
       console.time("Plotting PSD")
-      renderPSD(data, onPSDChartClick)
+      renderPSD(data, {
+        onclick: onPSDChartClick,
+        onzoom: syncZoom
+      })
       console.timeEnd("Plotting PSD")
+      break
+    case Messages.IN_PHASE_PROFILE_RESULT:
+      if (currentInPhaseData?.mode !== data.mode) {
+        destroyInPhase()
+      }
+
+      currentInPhaseData = data
+
+      console.time("Plotting In phase")
+      renderInPhase(data, { onzoom: syncZoom })
+      console.timeEnd("Plotting In phase")
+
       break
     case Messages.SINGLE_PHASE_RESULT:
       validateForm()
@@ -236,7 +262,7 @@ worker.onmessage = ({ data }) => {
       processingOptions.selectedPhase = data.targetPhase
 
       console.time("Plotting Single Phase")
-      renderSinglePhase(data)
+      renderSinglePhase(data, { onzoom: syncZoom })
       console.timeEnd("Plotting Single Phase")
       break
     case Messages.PHASE_PROFILE_RESULT:
@@ -265,12 +291,17 @@ worker.onmessage = ({ data }) => {
         images['selected_phase'] = document.getElementById('chartSinglePhase')
       }
 
+      if (currentInPhaseData) {
+        images['in_phase'] = document.getElementById('chartInPhase')
+      }
+
       downloadAnalysisArchive(
         {
           averagePeriod: data,
           psdData: currentPsdData,
           profileData: currentProfileData,
           singlePhaseData: currentSinglePhaseData,
+          inphaseData: currentInPhaseData,
           averagingOptions,
           parserOptions,
           processingOptions,
@@ -327,6 +358,8 @@ parametersForm.addEventListener('submit', (event) => {
     resolution: resolutionInput.valueAsNumber,
     waveType: waveTypeInput.value,
     harmonic: harmonicInput.valueAsNumber,
+
+    inPhaseMinIntensityThreshold: inPhaseThresholdInput.valueAsNumber,
 
     referenceIndex: referenceIndexInput.valueAsNumber - 1,
     differentialResolution: resolutionInput.valueAsNumber

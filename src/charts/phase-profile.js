@@ -99,6 +99,11 @@ export function renderPhaseProfile ({ mode, intensities, phaseAngles, selectedX,
           datasets: [dataset]
         },
         options: {
+          layout: {
+            padding: {
+              right: 55
+            }
+          },
           plugins: {
             title: {
               display: true,

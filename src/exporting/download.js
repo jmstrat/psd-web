@@ -124,6 +124,7 @@ function getArchiveFileStreams (
     psdData,
     profileData,
     singlePhaseData,
+    inphaseData,
     averagingOptions,
     parserOptions,
     processingOptions,
@@ -195,6 +196,20 @@ function getArchiveFileStreams (
         [xlab, ylab],
         singlePhaseData.xAxisData,
         [singlePhaseData.yAxisData],
+        options.separator
+      )
+    })
+  }
+
+  if (inphaseData) {
+    const xlab = axisLabel(inphaseData.dataType.x)
+    const ylab = axisLabel(inphaseData.dataType.y)
+    filesToArchive.push({
+      name: `in_phase.${ext}`,
+      stream: createCSVStream(
+        [xlab, "Theta", ylab],
+        inphaseData.xAxisData,
+        [inphaseData.yAxisData, inphaseData.intensityData],
         options.separator
       )
     })

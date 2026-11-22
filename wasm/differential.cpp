@@ -87,4 +87,58 @@ void runDifferentialProfile(
   }
 }
 
+
+// For every x point, finds the scan at which the differential signal is at
+// its maximum.
+//
+// If useAbsoluteValue is non-zero the largest magnitude is used.
+// outputMaxValues is optional (may be nullptr)
+void runDifferentialMaxScan(
+  const double* averagedPeriod,
+  int spectraPerPeriod,
+  int spectrumLength,
+  int referenceIndex,
+  int useAbsoluteValue,
+  double* outputScanIndices,
+  double* outputMaxValues
+) {
+  if (spectrumLength <= 0) {
+    return;
+  }
+
+  std::fill_n(outputScanIndices, spectrumLength, 0.0);
+  if (outputMaxValues != nullptr) {
+    std::fill_n(outputMaxValues, spectrumLength, 0.0);
+  }
+
+  if (spectraPerPeriod <= 0 || !isValidIndex(referenceIndex, spectraPerPeriod)) {
+    return;
+  }
+
+  const double* reference = averagedPeriod + static_cast<long long>(referenceIndex) * spectrumLength;
+
+  for (int xIndex = 0; xIndex < spectrumLength; xIndex++) {
+    int bestIndex = 0;
+    double bestValue = averagedPeriod[xIndex] - reference[xIndex];
+    double bestScore = useAbsoluteValue ? std::fabs(bestValue) : bestValue;
+
+    for (int timeIndex = 1; timeIndex < spectraPerPeriod; timeIndex++) {
+      const double value =
+        averagedPeriod[static_cast<long long>(timeIndex) * spectrumLength + xIndex] - reference[xIndex];
+      const double score = useAbsoluteValue ? std::fabs(value) : value;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestValue = value;
+        bestIndex = timeIndex;
+      }
+    }
+
+    outputScanIndices[xIndex] = static_cast<double>(bestIndex);
+    if (outputMaxValues != nullptr) {
+      outputMaxValues[xIndex] = bestValue;
+    }
+  }
+}
+
 } // extern "C"

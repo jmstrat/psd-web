@@ -8,6 +8,7 @@ export const Messages = Object.freeze({
   GET_SINGLE_PHASE: "get_single_phase",
 
   PSD_RESULT: "psd_result",
+  IN_PHASE_PROFILE_RESULT: "in_phase_profile_result",
   AVERAGED_PERIOD_RESULT: "averaged_period_result",
   SINGLE_PHASE_RESULT: "single_phase_result",
   PHASE_PROFILE_RESULT: "phase_profile_result",

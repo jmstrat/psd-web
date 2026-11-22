@@ -201,3 +201,66 @@ export function getDifferentialSinglePhase ({ targetPhase: targetScanTime, refer
     transferList
   })
 }
+
+export function getDifferentialInPhase ({ referenceIndex, differentialResolution, inPhaseMinIntensityThreshold }, runner) {
+  console.time("In Phase Profile Calculation")
+
+  const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
+
+  const outputSpectra = allocRebinned(spectraPerCycle, spectrumLength, differentialResolution, runner)
+
+  runner
+  .allocate({
+    indicies: spectrumLength,
+    intensities: spectrumLength
+  })
+  .run((data, wasm) => {
+    wasm._runDifferentialMaxScan(
+      data.input,
+      outputSpectra,
+      spectrumLength,
+      referenceIndex,
+      0,
+      data.indicies,
+      data.intensities
+    )
+  })
+
+  const indicies = runner.read('indicies')
+  const intensities = runner.read('intensities')
+
+  runner.free('indicies')
+  runner.free('intensities')
+
+  if (Number.isFinite(inPhaseMinIntensityThreshold)) {
+    for (let i = 0; i < indicies.length; i++) {
+      if (intensities[i] < inPhaseMinIntensityThreshold) {
+        indicies[i] = NaN
+      }
+    }
+  }
+
+  const { timeValues } = SharedFileReader.getData()
+
+  const times = []
+
+  for (const idx of indicies) {
+    if (idx > 0) {
+      times.push(timeValues[idx * differentialResolution])
+    } else {
+      times.push(NaN)
+    }
+  }
+
+  const xBufferToTransfer = x.slice().buffer
+  const transferList = [xBufferToTransfer, intensities.buffer]
+
+  console.timeEnd("In Phase Profile Calculation")
+
+  return({
+    xAxisData: new Float64Array(xBufferToTransfer),
+    yAxisData: times,
+    intensityData: intensities,
+    transferList
+  })
+}

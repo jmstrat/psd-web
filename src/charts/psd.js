@@ -6,7 +6,7 @@ import { gradientLegend } from './gradient-legend.js'
 const PSDChartCtx = document.getElementById("chartPSD").getContext("2d")
 let PSDChart = null
 
-export function renderPSD ({ mode, xAxisData, datasets, dataType }, onclick) {
+export function renderPSD ({ mode, xAxisData, datasets, dataType }, { onclick, onzoom }) {
   const styledDatasets = datasets.map((dataset, idx) => {
     const colour = getColour(palettes.roma, idx, datasets.length)
     return {
@@ -89,7 +89,8 @@ export function renderPSD ({ mode, xAxisData, datasets, dataType }, onclick) {
               enabled: true,
               algorithm: 'lttb',
               samples: 1000
-            }
+            },
+            zoom: { zoom: { onZoom: onzoom }}
           },
           scales: {
             x: {
@@ -112,6 +113,15 @@ export function renderPSD ({ mode, xAxisData, datasets, dataType }, onclick) {
     PSDChart.options.scales.y.title.text = axisLabel(dataType.y)
     PSDChart.update("none")
   }
+}
+
+export function zoomPSD (min, max) {
+ if (!PSDChart) {
+    return
+  }
+  PSDChart.options.scales.x.min = min
+  PSDChart.options.scales.x.max = max
+  PSDChart.update('none')
 }
 
 export function destroyPSD () {

@@ -33,6 +33,31 @@ export const verticalHoverLine = Object.freeze({
   }
 })
 
+export const hoverCrosshair = Object.freeze({
+  id: 'hoverCrosshair',
+  afterDatasetsDraw (chart) {
+    if (chart.tooltip?._active?.length) {
+      const { ctx, chartArea: { top, bottom, left, right } } = chart
+      const activePoint = chart.tooltip._active[0]
+      const { x: xCoord, y: yCoord } = activePoint.element
+
+      ctx.save()
+      ctx.beginPath()
+      ctx.lineWidth = 1
+      ctx.strokeStyle = 'rgba(100, 100, 100, 0.6)'
+
+      ctx.moveTo(xCoord, top)
+      ctx.lineTo(xCoord, bottom)
+
+      ctx.moveTo(left, yCoord)
+      ctx.lineTo(right, yCoord)
+
+      ctx.stroke()
+      ctx.restore()
+    }
+  }
+})
+
 export function axisLabel ({ label, unit }) {
   if (unit) {
     return `${label} / ${unit}`

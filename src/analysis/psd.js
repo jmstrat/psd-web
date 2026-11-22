@@ -179,3 +179,57 @@ export function getSinglePhase ({ waveType, harmonic, targetPhase }, runner) {
     transferList
   })
 }
+
+export function getAllInPhase ({ waveType, harmonic, resolution, inPhaseMinIntensityThreshold }, runner) {
+if (!Object.keys(WaveType).includes(waveType)) {
+    throw new Error("Unknown wave type")
+  }
+
+  console.time("In Phase Profile Calculation")
+  const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
+
+  runner
+  .allocate({
+    angles: spectrumLength,
+    intensities: spectrumLength
+  })
+  .run((data, wasm) => {
+    wasm._runPSDMaxPhase(
+      data.averagedPeriod,
+      data.timeValues,
+      spectraPerCycle,
+      spectrumLength,
+      resolution,
+      WaveType[waveType],
+      harmonic,
+      data.angles,
+      data.intensities
+    )
+  })
+
+  const angles = runner.read('angles')
+  const intensities = runner.read('intensities')
+
+  runner.free('angles')
+  runner.free('intensities')
+
+  if (Number.isFinite(inPhaseMinIntensityThreshold)) {
+    for (let i = 0; i < angles.length; i++) {
+      if (intensities[i] < inPhaseMinIntensityThreshold) {
+        angles[i] = NaN
+      }
+    }
+  }
+
+  const xBufferToTransfer = x.slice().buffer
+  const transferList = [xBufferToTransfer, angles.buffer, intensities.buffer]
+
+  console.timeEnd("In Phase Profile Calculation")
+
+  return({
+    xAxisData: new Float64Array(xBufferToTransfer),
+    yAxisData: angles,
+    intensityData: intensities,
+    transferList
+  })
+}

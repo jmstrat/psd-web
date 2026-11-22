@@ -4,7 +4,7 @@ import { destroyChart, axisLabel } from './util.js'
 const SinglePhaseChartCtx = document.getElementById("chartSinglePhase").getContext("2d")
 let SinglePhaseChart = null
 
-export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, dataType }) {
+export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, dataType }, { onzoom }) {
   const dataset = {
     label: '',
     borderColor: "#000",
@@ -25,6 +25,11 @@ export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, da
       {
         data: { datasets: [dataset] },
         options: {
+          layout: {
+            padding: {
+              right: 55
+            }
+          },
           plugins: {
             tooltip: {
               enabled: true
@@ -34,6 +39,7 @@ export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, da
               text: titleText,
               font: { size: 14, weight: "bold" }
             },
+            zoom: { zoom: { onZoom: onzoom }}
           },
           scales: {
             x: {
@@ -55,6 +61,15 @@ export function renderSinglePhase ({ mode, xAxisData, yAxisData, targetPhase, da
     SinglePhaseChart.options.scales.y.title.text = axisLabel(dataType.y)
     SinglePhaseChart.update("none")
   }
+}
+
+export function zoomSinglePhase (min, max) {
+  if (!SinglePhaseChart) {
+    return
+  }
+  SinglePhaseChart.options.scales.x.min = min
+  SinglePhaseChart.options.scales.x.max = max
+  SinglePhaseChart.update('none')
 }
 
 export function destroySinglePhase () {

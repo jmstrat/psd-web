@@ -1,6 +1,7 @@
 import {
   Chart,
   LineController,
+  ScatterController,
   LineElement,
   PointElement,
   LinearScale,
@@ -18,7 +19,7 @@ import {
   deepMerge
 } from './util.js'
 
-Chart.register(LineController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Decimation, zoomPlugin)
+Chart.register(LineController, ScatterController, LineElement, PointElement, LinearScale, Title, SubTitle, Tooltip, Decimation, zoomPlugin)
 
 export function createBaseChart (ctx, userConfig = {}, onclick) {
   // We abort this on destroy to remove listeners
@@ -124,7 +125,10 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
         y: {
           grid: { display: false },
           border: { display: true, color: '#000', width: 1 },
-          ticks: { display: false }
+          ticks: { display: false },
+          afterFit (scale) {
+            scale.width = 60
+          }
         }
       }
     },
@@ -169,6 +173,7 @@ export function createBaseChart (ctx, userConfig = {}, onclick) {
   chart.canvas.addEventListener('dblclick', () => {
     if (typeof chart.resetZoom === 'function') {
       chart.resetZoom('none')
+      chart.options?.plugins?.zoom?.zoom?.onZoom?.({ chart });
     }
   }, { signal })
 

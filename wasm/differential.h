@@ -28,4 +28,14 @@ void runDifferentialProfile(
   double* outputY
 );
 
+void runDifferentialMaxScan(
+  const double* averagedPeriod,
+  int spectraPerPeriod,
+  int spectrumLength,
+  int referenceIndex,
+  int useAbsoluteValue,
+  double* outputScanIndices,
+  double* outputMaxValues
+);
+
 }

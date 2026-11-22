@@ -5,23 +5,27 @@ import Runner from "./analysis/wasm-runner.js"
 import {
   runPSD,
   getProfile,
-  getSinglePhase
+  getSinglePhase,
+  getAllInPhase
 } from "./analysis/psd.js"
 
 import {
   runDifferential,
   getDifferentialProfile,
-  getDifferentialSinglePhase
+  getDifferentialSinglePhase,
+  getDifferentialInPhase
 } from "./analysis/differential.js"
 
 const analysisModes = {
   psd: {
     run: runPSD,
+    inPhaseProfile: getAllInPhase,
     profile: getProfile,
     singlePhase: getSinglePhase
   },
   differential: {
     run: runDifferential,
+    inPhaseProfile: getDifferentialInPhase,
     profile: getDifferentialProfile,
     singlePhase: getDifferentialSinglePhase
   }
@@ -72,9 +76,9 @@ onmessage = async ({ data }) => {
         })
 
         allocateRunner()
-        const calcF = getMode(data.processingOptions.mode).run
+        const mode = getMode(data.processingOptions.mode)
 
-        const { transferList, ...result } = calcF(data.processingOptions, sharedRunner)
+        const { transferList, ...result } = mode.run(data.processingOptions, sharedRunner)
         const { dataType, metadata } = SharedFileReader
 
         postMessage({
@@ -84,6 +88,19 @@ onmessage = async ({ data }) => {
           dataType,
           metadata
         }, transferList)
+
+        const { transferList: transferList2, ...result2 } = mode.inPhaseProfile({
+          ...data.processingOptions,
+          resolution: 1
+        }, sharedRunner)
+
+
+        postMessage({
+          type: Messages.IN_PHASE_PROFILE_RESULT,
+          mode: data.processingOptions.mode,
+          ...result2,
+          dataType
+        }, transferList2)
 
         postMessage({
           type: Messages.PROGRESS,

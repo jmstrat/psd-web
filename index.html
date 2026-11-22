@@ -188,6 +188,13 @@
                   </span>
                 </div>
               </div>
+
+              <div>
+                <label for="inPhaseThreshold" class="form-label">
+                  In Phase Intensity Minimum Threshold
+                </label>
+                <input id="inPhaseThreshold" type="number" value="" step="any" class="form-input" placeholder="None">
+              </div>
             </div>
             <button id="runButton" disabled type="submit"
             class="mt-6 h-10 w-full btn-primary">
@@ -224,6 +231,16 @@
             </div>
             <div class="h-[290px]">
               <canvas id="chartPSD" class="w-full h-full"></canvas>
+            </div>
+          </section>
+
+          <!-- In Phase -->
+          <section class="relative panel p-4">
+            <div class="chart-label">
+              <h2>In Phase Angles</h2>
+            </div>
+            <div class="h-[290px]">
+              <canvas id="chartInPhase" class="w-full h-full"></canvas>
             </div>
           </section>
 

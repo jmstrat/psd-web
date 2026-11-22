@@ -46,7 +46,7 @@ export default class WasmRunner {
   }
 
   run (executionCallback) {
-    const pointers = {}
+    const pointers = { nullptr: 0 }
     for (const [key, buffer] of this.#buffers.entries()) {
       pointers[key] = buffer.ptr
     }

@@ -252,4 +252,56 @@ void runPhaseProfile(
   }
 }
 
+// For every x point, finds the phase angle (in degrees) at which the PSD
+// phase profile is at its maximum, i.e. the "in-phase" angle of that x point.
+// outputMaxValues is optional (may be nullptr)
+void runPSDMaxPhase(
+  const double* averagedPeriod,
+  const double* timeValues,
+  int spectraPerPeriod,
+  int spectrumLength,
+  double phaseResolutionDegrees,
+  WaveType waveType,
+  int harmonic,
+  double* outputPhaseDegrees,
+  double* outputMaxValues
+) {
+  const auto params = calculateSimulationParameters(spectraPerPeriod, phaseResolutionDegrees, timeValues);
+  const auto means = calculateMeans(averagedPeriod, spectraPerPeriod, spectrumLength);
+
+  std::fill_n(outputPhaseDegrees, spectrumLength, 0.0);
+  std::vector<double> bestValues(spectrumLength, 0.0);
+  std::vector<double> current(spectrumLength);
+
+  for (int phaseIndex = 0; phaseIndex < params.phaseCount; phaseIndex++) {
+    const double phaseDegrees = phaseIndex * phaseResolutionDegrees;
+    const double phaseShift = phaseDegrees * M_PI / 180.0;
+
+    std::fill(current.begin(), current.end(), 0.0);
+
+    for (int timeIndex = 0; timeIndex < spectraPerPeriod; timeIndex++) {
+      const double t = timeValues[timeIndex];
+      const int timeOffset = timeIndex * spectrumLength;
+
+      const double theta = harmonic * params.angularFrequency * t + phaseShift;
+      const double reference = generateReferenceSample(waveType, theta) * params.normalizationFactor;
+
+      for (int xIndex = 0; xIndex < spectrumLength; xIndex++) {
+        current[xIndex] += (averagedPeriod[timeOffset + xIndex] - means[xIndex]) * reference;
+      }
+    }
+
+    for (int xIndex = 0; xIndex < spectrumLength; xIndex++) {
+      if (phaseIndex == 0 || current[xIndex] > bestValues[xIndex]) {
+        bestValues[xIndex] = current[xIndex];
+        outputPhaseDegrees[xIndex] = phaseDegrees;
+      }
+    }
+  }
+
+  if (outputMaxValues != nullptr) {
+    std::copy(bestValues.begin(), bestValues.end(), outputMaxValues);
+  }
+}
+
 } // extern "C"
