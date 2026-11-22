@@ -59,6 +59,12 @@ export class NexusParser extends BaseParser {
       }
     }
 
+    if (options.invalidFallback !== undefined) {
+      if (!Number.isFinite(options.invalidFallback)) {
+        throw new Error("invalid fallback must be a finite number")
+      }
+    }
+
     return {
       dataPath: options.dataPath || null,
       primaryDataset: options.primaryDataset || null,
@@ -66,6 +72,7 @@ export class NexusParser extends BaseParser {
       slice: options.slice || {},
       xMin: options.xMin !== undefined ? options.xMin : -Infinity,
       xMax: options.xMax !== undefined ? options.xMax : Infinity,
+      invalidFallback: options.invalidFallback ?? 0,
       ...super.validateOptions(options)
     }
   }
@@ -117,12 +124,17 @@ export class NexusParser extends BaseParser {
         return 0
       }
 
+      console.log(`[nexus] Using dataset ${path}/${primaryDatasetKey}`)
+
       const primaryDataset = this.file.get(`${path}/${primaryDatasetKey}`)
       if (!primaryDataset) {
         return 0
       }
 
       const axes = this.#resolveAxes(group, primaryDataset)
+
+      console.log(`[nexus] Resolved axes [${axes.join(', ')}]`)
+
       const rawSlice = this.#resolveSliceForDataset(primaryDataset, axes)
       const shape = primaryDataset.shape || []
 
@@ -405,7 +417,25 @@ export class NexusParser extends BaseParser {
     }
 
     const values = dataset.slice(selection)
-    return Float64Array.from(values)
+
+    let hasInvalidData = false
+    const result = Float64Array.from(values, (val) => {
+      const num = Number(val)
+      if (!Number.isFinite(num)) {
+        hasInvalidData = true
+        return this.options.invalidFallback
+      }
+      return num
+    })
+
+    // FIXME ideally this should show a visible warning in the GUI
+    // this is really just a quick fix for now
+
+    if (hasInvalidData) {
+      console.warn(`[nexus] slice ${selection} had corrupted data that has been replaced with ${this.options.invalidFallback}`)
+    }
+
+    return result
   }
 
   #resolveSliceForDataset (dataset, axes) {
