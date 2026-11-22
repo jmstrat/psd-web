@@ -41,7 +41,6 @@ const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
 const referenceIndexInput = document.getElementById("referenceIndex")
 const resolutionInput = document.getElementById("resolution")
-const resolutionUnit = resolutionInput.parentElement.querySelector(".input-unit")
 const inPhaseThresholdInput = document.getElementById("inPhaseThreshold")
 
 const runButton = document.getElementById("runButton")
@@ -127,18 +126,16 @@ function validateForm () {
   if (modeInput.value === 'psd') {
     waveTypeInput.disabled = false
     harmonicInput.disabled = false
+    resolutionInput.disabled = false
     referenceIndexInput.disabled = true
-    resolutionUnit.textContent = '°'
 
     isHarmonicInvalid = isNaN(harmonic) || harmonic < 0 || !Number.isInteger(harmonic)
     isResolutionInvalid = isNaN(resolution) || resolution <= 0 || resolution >= 360
   } else {
     waveTypeInput.disabled = true
     harmonicInput.disabled = true
+    resolutionInput.disabled = true
     referenceIndexInput.disabled = false
-    resolutionUnit.textContent = 'spectra'
-
-    isResolutionInvalid = isNaN(resolution) || resolution < 1
   }
 
   const shouldDisable = isCycleInvalid ||
@@ -365,8 +362,7 @@ parametersForm.addEventListener('submit', (event) => {
 
     inPhaseMinIntensityThreshold: inPhaseThresholdInput.valueAsNumber,
 
-    referenceIndex: referenceIndexInput.valueAsNumber - 1,
-    differentialResolution: resolutionInput.valueAsNumber
+    referenceIndex: referenceIndexInput.valueAsNumber - 1
   }
 
   worker.postMessage({
@@ -390,8 +386,7 @@ function onPSDChartClick (x, idx) {
     resolution: 1,
     waveType: processingOptions.waveType,
     harmonic: processingOptions.harmonic,
-    referenceIndex: processingOptions.referenceIndex,
-    differentialResolution: processingOptions.differentialResolution
+    referenceIndex: processingOptions.referenceIndex
   })
 }
 
@@ -404,8 +399,7 @@ function onPhaseProfileClick (x, idx) {
     waveType: processingOptions.waveType,
     harmonic: processingOptions.harmonic,
     targetPhase: Math.round(x),
-    referenceIndex: processingOptions.referenceIndex,
-    differentialResolution: processingOptions.differentialResolution
+    referenceIndex: processingOptions.referenceIndex
   })
 }
 

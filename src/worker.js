@@ -182,7 +182,6 @@ onmessage = async ({ data }) => {
           harmonic: data.harmonic,
           targetPhase: maxPhase,
 
-          differentialResolution: data.differentialResolution,
           referenceIndex: data.referenceIndex
         }
         const { transferList: transferList2, ...result2 } = mode.singlePhase(args, sharedRunner)

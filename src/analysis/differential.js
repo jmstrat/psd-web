@@ -7,28 +7,7 @@ import { CycleMerger } from "@/importing/cycle-merger.js"
 // SharedFileReader must have data available before calling the functions
 // in this module.
 
-function allocRebinned (spectraPerCycle, spectrumLength, differentialResolution, runner) {
-  // We could do this more efficiently, but this should work fine for most cases
-
-  const outputSpectra = spectraPerCycle / differentialResolution
-
-  if (!Number.isInteger(outputSpectra)) {
-    throw new Error(`Invalid differentialResolution: ${spectraPerCycle} / ${differentialResolution} is non-integer`)
-  }
-
-  // FIXME this is probably unnecessary with the merge count option
-
-  const merger = new CycleMerger(outputSpectra, spectrumLength, outputSpectra)
-  for (let i = 0; i < spectraPerCycle; i++) {
-    merger.addFrame(Math.floor(i / differentialResolution), SharedFileReader.getDataset(i))
-  }
-
-  runner.allocate({ input: merger.getAveragedPeriod() })
-
-  return outputSpectra
-}
-
-export function runDifferential ({ referenceIndex, differentialResolution }, runner) {
+export function runDifferential ({ referenceIndex }, runner) {
 
   const {
     x,
@@ -36,11 +15,9 @@ export function runDifferential ({ referenceIndex, differentialResolution }, run
     spectrumLength
   } = SharedFileReader.getData()
 
-  const outputSpectra = allocRebinned(spectraPerCycle, spectrumLength, differentialResolution, runner)
-
   console.time("Differential Calculation")
 
-  const outputSize = outputSpectra * spectrumLength
+  const outputSize = spectraPerCycle * spectrumLength
 
   const result = runner
   .allocate({
@@ -48,8 +25,8 @@ export function runDifferential ({ referenceIndex, differentialResolution }, run
   })
   .run((data, wasm) => {
     wasm._runDifferential(
-      data.input,
-      outputSpectra,
+      data.averagedPeriod,
+      spectraPerCycle,
       spectrumLength,
       referenceIndex,
       data.output
@@ -73,14 +50,14 @@ export function runDifferential ({ referenceIndex, differentialResolution }, run
 
   const { timeValues } = SharedFileReader.getData()
 
-  for (let idx = 0; idx < outputSpectra; idx++) {
+  for (let idx = 0; idx < spectraPerCycle; idx++) {
     const y = CycleMerger.extractDataset(result, spectrumLength, idx)
                          .slice()
 
     transferList.push(y.buffer)
 
     datasets.push({
-      label: `${timeValues[idx * differentialResolution].toFixed(1)} s`,
+      label: `${timeValues[idx].toFixed(1)} s`,
       data: y
     })
   }
@@ -93,20 +70,18 @@ export function runDifferential ({ referenceIndex, differentialResolution }, run
   }
 }
 
-export function getDifferentialProfile ({ xIndex, referenceIndex, differentialResolution }, runner) {
+export function getDifferentialProfile ({ xIndex, referenceIndex }, runner) {
   console.time("Profile Calculation")
   const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
 
-  const outputSpectra = allocRebinned(spectraPerCycle, spectrumLength, differentialResolution, runner)
-
   const intensities = runner
   .allocate({
-    output: outputSpectra
+    output: spectraPerCycle
   })
   .run((data, wasm) => {
     wasm._runDifferentialProfile(
-      data.input,
-      outputSpectra,
+      data.averagedPeriod,
+      spectraPerCycle,
       spectrumLength,
       xIndex,
       referenceIndex,
@@ -130,15 +105,15 @@ export function getDifferentialProfile ({ xIndex, referenceIndex, differentialRe
     }
   }
 
-  const maxPhase = timeValues[maxIdx * differentialResolution]
+  const maxPhase = timeValues[maxIdx]
 
   const transferList = [intensities.buffer]
 
   console.timeEnd("Profile Calculation")
 
   const resultTimes = []
-  for (let i = 0; i < outputSpectra; i++) {
-    resultTimes.push(timeValues[i * differentialResolution])
+  for (let i = 0; i < spectraPerCycle; i++) {
+    resultTimes.push(timeValues[i])
   }
 
   return {
@@ -150,20 +125,18 @@ export function getDifferentialProfile ({ xIndex, referenceIndex, differentialRe
   }
 }
 
-export function getDifferentialSinglePhase ({ targetPhase: targetScanTime, referenceIndex, differentialResolution }, runner) {
+export function getDifferentialSinglePhase ({ targetPhase: targetScanTime, referenceIndex }, runner) {
 
   console.time("Single Phase Calculation")
   const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
-
-  const outputSpectra = allocRebinned(spectraPerCycle, spectrumLength, differentialResolution, runner)
 
   const { timeValues } = SharedFileReader.getData()
 
   let targetScanIndex = 0
   let minDiff = Infinity
 
-  for (let i = 1; i < outputSpectra; i++) {
-    const currentTime = timeValues[i * differentialResolution]
+  for (let i = 1; i < spectraPerCycle; i++) {
+    const currentTime = timeValues[i]
     const currentDiff = Math.abs(currentTime - targetScanTime)
 
     if (currentDiff < minDiff) {
@@ -180,8 +153,8 @@ export function getDifferentialSinglePhase ({ targetPhase: targetScanTime, refer
   })
   .run((data, wasm) => {
     wasm._runDifferentialForSingleScan(
-      data.input,
-      outputSpectra,
+      data.averagedPeriod,
+      spectraPerCycle,
       spectrumLength,
       targetScanIndex,
       referenceIndex,
@@ -204,12 +177,10 @@ export function getDifferentialSinglePhase ({ targetPhase: targetScanTime, refer
   })
 }
 
-export function getDifferentialInPhase ({ referenceIndex, differentialResolution, inPhaseMinIntensityThreshold }, runner) {
+export function getDifferentialInPhase ({ referenceIndex, inPhaseMinIntensityThreshold }, runner) {
   console.time("In Phase Profile Calculation")
 
   const { spectraPerCycle, spectrumLength, x } = SharedFileReader.getData()
-
-  const outputSpectra = allocRebinned(spectraPerCycle, spectrumLength, differentialResolution, runner)
 
   runner
   .allocate({
@@ -218,8 +189,8 @@ export function getDifferentialInPhase ({ referenceIndex, differentialResolution
   })
   .run((data, wasm) => {
     wasm._runDifferentialMaxScan(
-      data.input,
-      outputSpectra,
+      data.averagedPeriod,
+      spectraPerCycle,
       spectrumLength,
       referenceIndex,
       0,
@@ -248,7 +219,7 @@ export function getDifferentialInPhase ({ referenceIndex, differentialResolution
 
   for (const idx of indicies) {
     if (idx > 0) {
-      times.push(timeValues[idx * differentialResolution])
+      times.push(timeValues[idx])
     } else {
       times.push(NaN)
     }

@@ -36,7 +36,8 @@
   @apply h-full w-full bg-transparent px-2.5 text-sm outline-none
          [appearance:textfield]
          [&::-webkit-outer-spin-button]:appearance-none
-         [&::-webkit-inner-spin-button]:appearance-none;
+         [&::-webkit-inner-spin-button]:appearance-none
+         disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500 disabled:opacity-50;
 }
 
 .input-unit {
