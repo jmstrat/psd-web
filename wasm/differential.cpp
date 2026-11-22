@@ -1,5 +1,7 @@
 #include "differential.h"
 
+#include <cmath>
+
 #include <algorithm>
 
 namespace {
