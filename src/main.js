@@ -36,6 +36,7 @@ const parametersForm = document.getElementById("parameters")
 const modeInput = document.getElementById("analysisMode")
 const cyclePeriodInput = document.getElementById("cyclePeriod")
 const acquisitionIntervalInput = document.getElementById("acquisitionInterval")
+const mergeCountInput = document.getElementById("mergeCount")
 const waveTypeInput = document.getElementById("waveType")
 const harmonicInput = document.getElementById("harmonic")
 const referenceIndexInput = document.getElementById("referenceIndex")
@@ -332,7 +333,8 @@ parametersForm.addEventListener('submit', (event) => {
 
   averagingOptions = {
     cyclePeriodSeconds: cyclePeriodInput.valueAsNumber,
-    acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber
+    acquisitionIntervalSeconds: acquisitionIntervalInput.valueAsNumber,
+    mergeCount: mergeCountInput.valueAsNumber
   }
 
   parserOptions = {

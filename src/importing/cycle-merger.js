@@ -1,6 +1,7 @@
 // This class is responsible for taking data from multiple cycles and averaging them
 // into a single cycle. It does not assume that the cycle period is a multiple of the
 // acquisition period, if it isn't then data are re-binned.
+// Optionally, adjacent datapoints within the cycle can be merged (mergeCount > 1),
 // Note that acqTime is relative to the start of the experiment, the first datapoint
 // should have acqTime = 0
 export class CycleMerger {
@@ -17,12 +18,20 @@ export class CycleMerger {
     )
   }
 
-  constructor (spectraPerCycle, spectrumLength, cyclePeriodSeconds) {
+  constructor (spectraPerCycle, spectrumLength, cyclePeriodSeconds, mergeCount=1) {
+    if (!Number.isInteger(mergeCount) || mergeCount < 1) {
+      throw new RangeError('mergeCount must be a positive integer')
+    }
+
     this.spectraPerCycle = spectraPerCycle
     this.spectrumLength = spectrumLength
     this.cyclePeriodSeconds = cyclePeriodSeconds
+    this.mergeCount = Math.min(mergeCount, spectraPerCycle)
 
-    this.averagedPeriod = new Float64Array(spectraPerCycle * spectrumLength)
+    // Number of datasets in the output
+    this.outputSpectraPerCycle = Math.ceil(spectraPerCycle / this.mergeCount)
+
+    this.sumPeriod = new Float64Array(spectraPerCycle * spectrumLength)
     this.weightSum = new Float64Array(spectraPerCycle)
   }
 
@@ -45,8 +54,8 @@ export class CycleMerger {
 
     for (let j = 0; j < this.spectrumLength; j++) {
       const v = y[j]
-      this.averagedPeriod[offset0 + j] += v * w0
-      this.averagedPeriod[offset1 + j] += v * w1
+      this.sumPeriod[offset0 + j] += v * w0
+      this.sumPeriod[offset1 + j] += v * w1
     }
 
     this.weightSum[b0] += w0
@@ -54,19 +63,38 @@ export class CycleMerger {
   }
 
   getAveragedPeriod () {
-    for (let b = 0; b < this.spectraPerCycle; b++) {
-      const w = this.weightSum[b]
+    const len = this.spectrumLength
+    const out = new Float64Array(this.outputSpectraPerCycle * len)
+
+    // Merge adjacent spectra
+    for (let m = 0; m < this.outputSpectraPerCycle; m++) {
+      const start = m * this.mergeCount
+      const end = Math.min(start + this.mergeCount, this.spectraPerCycle)
+      const outOffset = m * len
+
+      // Total weight across all bins being merged
+      let w = 0
+      for (let b = start; b < end; b++) {
+        w += this.weightSum[b]
+      }
+
       if (!w) {
         continue
       }
 
-      const offset = b * this.spectrumLength
+      // Sum the weighted data
+      for (let b = start; b < end; b++) {
+        const offset = b * len
+        for (let j = 0; j < len; j++) {
+          out[outOffset + j] += this.sumPeriod[offset + j]
+        }
+      }
 
-      for (let j = 0; j < this.spectrumLength; j++) {
-        this.averagedPeriod[offset + j] /= w
+      for (let j = 0; j < len; j++) {
+        out[outOffset + j] /= w
       }
     }
 
-    return this.averagedPeriod
+    return out
   }
 }

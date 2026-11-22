@@ -16,6 +16,8 @@ function allocRebinned (spectraPerCycle, spectrumLength, differentialResolution,
     throw new Error(`Invalid differentialResolution: ${spectraPerCycle} / ${differentialResolution} is non-integer`)
   }
 
+  // FIXME this is probably unnecessary with the merge count option
+
   const merger = new CycleMerger(outputSpectra, spectrumLength, outputSpectra)
   for (let i = 0; i < spectraPerCycle; i++) {
     merger.addFrame(Math.floor(i / differentialResolution), SharedFileReader.getDataset(i))

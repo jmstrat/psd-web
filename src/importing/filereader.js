@@ -15,7 +15,8 @@ async function readSpectraFiles (
 
   const {
     cyclePeriodSeconds,
-    acquisitionIntervalSeconds
+    acquisitionIntervalSeconds,
+    mergeCount
   } = averagingOptions
 
   if (!files || !files.length) {
@@ -40,6 +41,10 @@ async function readSpectraFiles (
     throw new Error("acquisitionIntervalSeconds must be smaller than cyclePeriodSeconds")
   }
 
+  if (!Number.isInteger(mergeCount) || mergeCount < 1) {
+    throw new Error('Merge count must be a positive integer')
+  }
+
   // To avoid hammering GC all data are read into the same underlying buffers
   // As we read files sequentially this will not cause any issues and avoids
   // repeated allocations of large arrays
@@ -53,6 +58,10 @@ async function readSpectraFiles (
   }
 
   const spectraPerCycle = Math.round(cyclePeriodSeconds / acquisitionIntervalSeconds)
+
+  if (spectraPerCycle % mergeCount !== 0) {
+    throw new Error('The number of spectra in a single cycle must be divisible by the merge count')
+  }
 
   files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
 
@@ -119,7 +128,7 @@ async function readSpectraFiles (
 
         console.log('Points per spectrum', spectrumLength)
 
-        merger = new CycleMerger(spectraPerCycle, spectrumLength, cyclePeriodSeconds)
+        merger = new CycleMerger(spectraPerCycle, spectrumLength, cyclePeriodSeconds, mergeCount)
       } else {
         // Subsequent files we just validate that the axes match
         if (!compareSignature(xSignature, sig)) {
@@ -162,11 +171,15 @@ async function readSpectraFiles (
   }
 
   const averagedPeriod = merger.getAveragedPeriod()
+  const outputSpectraPerCycle = merger.outputSpectraPerCycle
+  const effectiveMergeCount = merger.mergeCount
 
   // Generate the timeValues for the averaged period
-  const timeValues = new Float64Array(spectraPerCycle)
-  for (let k = 0; k < spectraPerCycle; k++) {
-    timeValues[k] = k * acquisitionIntervalSeconds
+  const timeValues = new Float64Array(outputSpectraPerCycle)
+  for (let k = 0; k < outputSpectraPerCycle; k++) {
+    const start = k * effectiveMergeCount
+    const end = Math.min(start + effectiveMergeCount, spectraPerCycle)
+    timeValues[k] = ((start + end - 1) / 2) * acquisitionIntervalSeconds
   }
 
   return {
@@ -175,7 +188,7 @@ async function readSpectraFiles (
     x: xAxis,
     timeValues,
     averagedPeriod,
-    spectraPerCycle,
+    spectraPerCycle: outputSpectraPerCycle,
     spectrumLength
   }
 }
