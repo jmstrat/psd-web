@@ -450,7 +450,7 @@ export class NexusParser extends BaseParser {
     for (let i = 0; i < shape.length; i++) {
       const axisName = axes[i]
 
-      if (axisName && axisName !== "." && this.options.slice[axisName] !== undefined) {
+      if (axisName && this.options.slice[axisName] !== undefined) {
         slice[i] = this.options.slice[axisName]
       } else if (i !== xAxisIdx) {
         slice[i] = 0
